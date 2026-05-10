@@ -1,7 +1,6 @@
 import SwiftUI
 import Combine
 
-@MainActor
 final class RecommendationViewModel: ObservableObject {
     @Published var recommendations: [Recommendation] = []
     @Published var currentIndex: Int = 0
@@ -18,6 +17,7 @@ final class RecommendationViewModel: ObservableObject {
         self.repository = repository
     }
 
+    @MainActor
     func load(type: PredictionType, race: Race? = nil) async {
         let target = race ?? repository.fetchCurrentRace()
         isLoading = true
@@ -35,6 +35,7 @@ final class RecommendationViewModel: ObservableObject {
         currentIndex = 0
     }
 
+    @MainActor
     func showNext() {
         guard hasNext else { return }
         currentIndex += 1
