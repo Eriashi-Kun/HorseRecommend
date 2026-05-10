@@ -250,22 +250,13 @@ struct RecommendationResultView: View {
         VStack(alignment: .leading, spacing: 14) {
             // Header
             HStack(spacing: 8) {
-                Image(systemName: vm.usedAI ? "sparkles" : "text.bubble.fill")
+                Image(systemName: "text.bubble.fill")
                     .foregroundColor(type.color)
                     .font(.system(size: 14))
-                Text(vm.usedAI ? "AI 予想理由" : "予想理由")
+                Text("予想理由")
                     .font(.system(size: 12, weight: .black))
                     .foregroundColor(type.color)
                     .tracking(1)
-                if vm.usedAI {
-                    Text("Claude")
-                        .font(.system(size: 10, weight: .black))
-                        .foregroundColor(SplatTheme.bg)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3)
-                        .background(type.color)
-                        .cornerRadius(4)
-                }
                 Spacer()
             }
 
