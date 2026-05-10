@@ -82,7 +82,7 @@ struct RaceSelectionView: View {
                 selectedVenue = currentVenues.first ?? ""
             }
         }
-        .onChange(of: selectedDay) { newDay in
+        .onChange(of: selectedDay) { _, newDay in
             withAnimation { selectedVenue = venues(for: newDay).first ?? "" }
         }
     }

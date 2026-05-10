@@ -248,7 +248,7 @@ struct SplatTypeCard: View {
             .padding(.vertical, 18)
         }
         .scaleEffect(isSelected ? 1.03 : 1.0)
-        .onChange(of: isSelected) { newValue in
+        .onChange(of: isSelected) { _, newValue in
             guard newValue else { return }
             shimmerX = -0.3
             withAnimation(.easeOut(duration: 0.45)) {
