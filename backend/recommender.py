@@ -51,15 +51,20 @@ def _call_claude(race: dict, pred_type: str) -> dict:
 【予想スタイル：{label}】
 {instruction}
 
-各推奨馬について、オッズ・馬場・距離を踏まえた具体的で読んで楽しい予想理由を1〜2文で書いてください。
-体言止め禁止。ポジティブかつ核心をついた表現で。
+各推奨馬について、以下の観点を含む具体的な予想理由を3〜4文で書いてください：
+- この馬が今日の条件（距離・馬場・コース形態）に向いている理由
+- オッズと人気面での信頼度や妙味の評価
+- このレースでの具体的な期待シナリオ
+
+体言止め禁止。数字を使った根拠を含め、読んで楽しく納得感のある文章で。
 
 必ず以下のJSON形式だけを返してください（他のテキスト不要）:
 {{"picks": [{{"number": <馬番>, "score": <推奨度1-99>, "reason": "<理由>"}}]}}"""
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=1024,
+        max_tokens=2048,
+        temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
 

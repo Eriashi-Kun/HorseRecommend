@@ -13,8 +13,9 @@ struct RecommendationResultView: View {
 
             if let rec = vm.current {
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 18) {
+                    VStack(spacing: 16) {
                         topBar(rec: rec)
+                        raceStrip
                         horseHero(rec: rec)
                         statsRow(rec: rec)
                         reasonCard(rec: rec)
@@ -26,7 +27,7 @@ struct RecommendationResultView: View {
                     .padding(.top, 20)
                 }
             } else {
-                ProgressView().tint(type.color)
+                loadingView
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -38,11 +39,21 @@ struct RecommendationResultView: View {
         }
     }
 
+    // MARK: - Loading
+
+    private var loadingView: some View {
+        VStack(spacing: 16) {
+            ProgressView().tint(type.color).scaleEffect(1.4)
+            Text("AI予想を生成中...")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(.white.opacity(0.5))
+        }
+    }
+
     // MARK: - Top Bar
 
     private func topBar(rec: Recommendation) -> some View {
         HStack(spacing: 0) {
-            // Custom back button
             Button(action: { dismiss() }) {
                 HStack(spacing: 5) {
                     Image(systemName: "arrow.left")
@@ -76,11 +87,48 @@ struct RecommendationResultView: View {
         .opacity(appeared ? 1 : 0)
     }
 
+    // MARK: - Race Strip
+
+    private var raceStrip: some View {
+        HStack(spacing: 8) {
+            if race.showsGradeBadge {
+                Text(race.grade.displayText)
+                    .font(.system(size: 10, weight: .black))
+                    .foregroundColor(SplatTheme.bg)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(race.grade.color)
+                    .cornerRadius(4)
+            }
+            Text(race.venue)
+                .font(.system(size: 12, weight: .black))
+                .foregroundColor(.white.opacity(0.5))
+            Text(race.name)
+                .font(.system(size: 13, weight: .black))
+                .foregroundColor(.white.opacity(0.85))
+                .lineLimit(1)
+            Spacer()
+            Text(race.distance)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.white.opacity(0.4))
+            Text("·")
+                .foregroundColor(.white.opacity(0.2))
+            Text(race.condition)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundColor(.white.opacity(0.4))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(SplatTheme.card)
+        .cornerRadius(10)
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06), lineWidth: 1))
+        .opacity(appeared ? 1 : 0)
+    }
+
     // MARK: - Horse Hero Card
 
     private func horseHero(rec: Recommendation) -> some View {
         ZStack {
-            // Glow shadow
             RoundedRectangle(cornerRadius: 22)
                 .fill(type.color.opacity(0.35))
                 .offset(x: 5, y: 9)
@@ -88,13 +136,9 @@ struct RecommendationResultView: View {
 
             RoundedRectangle(cornerRadius: 22)
                 .fill(SplatTheme.card)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 22)
-                        .stroke(type.color, lineWidth: 2.5)
-                )
+                .overlay(RoundedRectangle(cornerRadius: 22).stroke(type.color, lineWidth: 2.5))
 
             VStack(spacing: 14) {
-                // Number badge — tilted sticker style
                 ZStack {
                     Circle()
                         .fill(type.color)
@@ -107,14 +151,12 @@ struct RecommendationResultView: View {
                 .rotationEffect(.degrees(-6))
                 .padding(.top, 4)
 
-                // Horse name
                 Text(rec.horse.name)
                     .font(.system(size: 36, weight: .black, design: .rounded))
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .shadow(color: type.color.opacity(0.35), radius: 10)
 
-                // Sub labels
                 HStack(spacing: 10) {
                     Label("\(rec.popularityRank)番人気", systemImage: "flame.fill")
                         .font(.system(size: 13, weight: .black))
@@ -140,7 +182,6 @@ struct RecommendationResultView: View {
     private func statsRow(rec: Recommendation) -> some View {
         HStack(spacing: 12) {
             scoreGauge(rec: rec)
-
             VStack(spacing: 10) {
                 statChip(label: "人気", value: "\(rec.popularityRank)番人気", color: type.color)
                 statChip(label: "オッズ", value: String(format: "%.1f倍", rec.horse.odds), color: .white.opacity(0.65))
@@ -158,12 +199,10 @@ struct RecommendationResultView: View {
 
             VStack(spacing: 8) {
                 ZStack {
-                    Circle()
-                        .stroke(Color.white.opacity(0.07), lineWidth: 9)
+                    Circle().stroke(Color.white.opacity(0.07), lineWidth: 9)
                     Circle()
                         .trim(from: 0, to: CGFloat(rec.score / 99))
-                        .stroke(type.color,
-                                style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                        .stroke(type.color, style: StrokeStyle(lineWidth: 9, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .shadow(color: type.color.opacity(0.65), radius: 7)
                     VStack(spacing: -2) {
@@ -176,7 +215,6 @@ struct RecommendationResultView: View {
                     }
                 }
                 .frame(width: 90, height: 90)
-
                 Text("SCORE")
                     .font(.system(size: 11, weight: .black))
                     .foregroundColor(.white.opacity(0.35))
@@ -209,27 +247,57 @@ struct RecommendationResultView: View {
     // MARK: - Reason Card
 
     private func reasonCard(rec: Recommendation) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                Image(systemName: "text.bubble.fill")
+        VStack(alignment: .leading, spacing: 14) {
+            // Header
+            HStack(spacing: 8) {
+                Image(systemName: vm.usedAI ? "sparkles" : "text.bubble.fill")
                     .foregroundColor(type.color)
-                    .font(.system(size: 13))
-                Text("REASON")
+                    .font(.system(size: 14))
+                Text(vm.usedAI ? "AI 予想理由" : "予想理由")
                     .font(.system(size: 12, weight: .black))
                     .foregroundColor(type.color)
-                    .tracking(2)
+                    .tracking(1)
+                if vm.usedAI {
+                    Text("Claude")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(SplatTheme.bg)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(type.color)
+                        .cornerRadius(4)
+                }
+                Spacer()
             }
+
+            // Divider
+            Rectangle()
+                .fill(type.color.opacity(0.25))
+                .frame(height: 1)
+
+            // Reason text — main content
             Text(rec.reason)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(.white.opacity(0.80))
-                .lineSpacing(5)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(.white.opacity(0.88))
+                .lineSpacing(7)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(SplatTheme.card)
-        .cornerRadius(18)
-        .overlay(RoundedRectangle(cornerRadius: 18).stroke(type.color.opacity(0.22), lineWidth: 1))
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(SplatTheme.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18)
+                        .stroke(
+                            LinearGradient(
+                                colors: [type.color.opacity(0.5), type.color.opacity(0.15)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                )
+        )
         .opacity(appeared ? 1 : 0)
         .offset(y: appeared ? 0 : 18)
     }
@@ -238,9 +306,7 @@ struct RecommendationResultView: View {
 
     private func infoChips(rec: Recommendation) -> some View {
         HStack(spacing: 10) {
-            infoChip(label: "脚質",
-                     value: rec.horse.runningStyle.rawValue,
-                     color: rec.horse.runningStyle.color)
+            infoChip(label: "脚質", value: rec.horse.runningStyle.rawValue, color: rec.horse.runningStyle.color)
             infoChip(label: "距離", value: rec.race.distance, color: .white.opacity(0.65))
             infoChip(label: "馬場", value: rec.race.condition, color: .white.opacity(0.65))
         }
@@ -264,7 +330,7 @@ struct RecommendationResultView: View {
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(color.opacity(0.28), lineWidth: 1))
     }
 
-    // MARK: - Next Horse Button
+    // MARK: - Next Button
 
     private var nextButton: some View {
         Button {
