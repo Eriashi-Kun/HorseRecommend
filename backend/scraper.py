@@ -73,8 +73,7 @@ def fetch_race_detail(race_id: str, day: str) -> dict | None:
     race_number = f'{int(race_id[10:12])}R'
     grade = 'open'
 
-    # Page title is the most reliable source for venue and grade
-    # e.g. "NHKマイルカップ(G1) 2026年5月10日 東京競馬場 出馬表"
+    # Venue from page title (reliable: includes venue name like "東京競馬場")
     title_el = soup.find('title')
     if title_el:
         t = title_el.get_text()
@@ -82,27 +81,18 @@ def fetch_race_detail(race_id: str, day: str) -> dict | None:
             if v in t:
                 venue = v
                 break
-        if 'G1' in t:
-            grade = 'g1'
-        elif 'G2' in t:
-            grade = 'g2'
-        elif 'G3' in t:
-            grade = 'g3'
 
-    # Grade from CSS class name — netkeiba uses image sprites so get_text() is empty
+    # Grade from specific CSS class name (netkeiba uses image sprites, not text)
+    # Do NOT use page title — it contains "G1・G2・G3" site-wide in navigation text
     # Icon_GradeType1=G1, Icon_GradeType2=G2, Icon_GradeType3=G3, Icon_GradeType5=Listed
-    if grade == 'open':
-        for el in soup.select('[class*="GradeType"]'):
-            classes = ' '.join(el.get('class', []))
-            if 'GradeType1' in classes:
-                grade = 'g1'
-            elif 'GradeType2' in classes:
-                grade = 'g2'
-            elif 'GradeType3' in classes:
-                grade = 'g3'
-            elif 'GradeType5' in classes:
-                grade = 'listed'
-            break
+    if soup.select_one('.Icon_GradeType1'):
+        grade = 'g1'
+    elif soup.select_one('.Icon_GradeType2'):
+        grade = 'g2'
+    elif soup.select_one('.Icon_GradeType3'):
+        grade = 'g3'
+    elif soup.select_one('.Icon_GradeType5'):
+        grade = 'listed'
 
     # Race name
     race_name = ''
