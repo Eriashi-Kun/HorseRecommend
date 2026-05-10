@@ -14,7 +14,9 @@ final class NetworkRaceRepository {
         guard let url = URL(string: "\(baseURL)/races") else {
             throw URLError(.badURL)
         }
-        let (data, _) = try await URLSession.shared.data(from: url)
+        var request = URLRequest(url: url, timeoutInterval: 180)
+        request.httpMethod = "GET"
+        let (data, _) = try await URLSession.shared.data(for: request)
         let dtos = try JSONDecoder().decode([RaceDTO].self, from: data)
         let races = dtos.map { $0.toRace() }
         cache = races
@@ -22,22 +24,19 @@ final class NetworkRaceRepository {
     }
 
     func currentRace(from races: [Race]) -> Race {
-        let calendar = Calendar.current
-        let now = Date()
-        let weekday = calendar.component(.weekday, from: now)
-        let targetDay: RaceDay = weekday == 1 ? .sunday : .saturday
+        let dateFmt = DateFormatter()
+        dateFmt.dateFormat = "yyyyMMdd"
+        let today = dateFmt.string(from: Date())
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        let currentTime = formatter.string(from: now)
+        let timeFmt = DateFormatter()
+        timeFmt.dateFormat = "HH:mm"
+        let currentTime = timeFmt.string(from: Date())
 
-        let dayRaces = races
-            .filter { $0.day == targetDay }
-            .sorted { $0.time < $1.time }
+        let todayRaces = races.filter { $0.day == today }.sorted { $0.time < $1.time }
+        if let next = todayRaces.first(where: { $0.time >= currentTime }) { return next }
+        if let last = todayRaces.last { return last }
 
-        return dayRaces.first(where: { $0.time >= currentTime })
-            ?? dayRaces.last
-            ?? races.first
-            ?? sampleRaces[0]
+        let upcoming = races.sorted { $0.day < $1.day || ($0.day == $1.day && $0.time < $1.time) }
+        return upcoming.first ?? sampleRaces[0]
     }
 }

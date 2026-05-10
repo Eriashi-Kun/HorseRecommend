@@ -22,20 +22,10 @@ VENUE_CODES = {
 }
 
 
-def get_weekend_dates() -> list[tuple[str, str]]:
+def get_candidate_dates() -> list[str]:
+    """今日から14日間の日付リストを返す（YYYYMMDD形式）"""
     today = datetime.now()
-    weekday = today.weekday()  # 0=Mon ... 5=Sat, 6=Sun
-    if weekday == 6:
-        saturday = today - timedelta(days=1)
-    elif weekday == 5:
-        saturday = today
-    else:
-        saturday = today + timedelta(days=(5 - weekday))
-    sunday = saturday + timedelta(days=1)
-    return [
-        (saturday.strftime('%Y%m%d'), 'saturday'),
-        (sunday.strftime('%Y%m%d'), 'sunday'),
-    ]
+    return [(today + timedelta(days=i)).strftime('%Y%m%d') for i in range(14)]
 
 
 def _get(url: str, encoding: str = 'EUC-JP') -> BeautifulSoup | None:
@@ -184,14 +174,16 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
     return horses
 
 
-def fetch_races_for_weekend() -> list[dict]:
+def fetch_races_for_upcoming() -> list[dict]:
+    """今日から14日間で実際にレースが開催される日のレースをすべて取得する"""
     all_races = []
-    for date_str, day_label in get_weekend_dates():
-        logger.info(f"Fetching {date_str} ({day_label})")
+    for date_str in get_candidate_dates():
         race_ids = fetch_race_ids_for_date(date_str)
-        logger.info(f"  → {len(race_ids)} races found")
+        if not race_ids:
+            continue
+        logger.info(f"  → {date_str}: {len(race_ids)} races found")
         for race_id in race_ids:
-            race = fetch_race_detail(race_id, day_label)
+            race = fetch_race_detail(race_id, date_str)
             if race:
                 all_races.append(race)
             time.sleep(0.8)

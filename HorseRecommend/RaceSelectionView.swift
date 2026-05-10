@@ -4,10 +4,25 @@ struct RaceSelectionView: View {
     let races: [Race]
     var onSelect: (Race) -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedDay: RaceDay = .saturday
+    @State private var selectedDay: String = ""
     @State private var selectedVenue: String = ""
 
-    private func venues(for day: RaceDay) -> [String] {
+    private var uniqueDays: [String] {
+        Array(Set(races.map { $0.day })).sorted()
+    }
+
+    private func dayLabel(for dateStr: String) -> String {
+        guard dateStr.count == 8 else { return dateStr }
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyyMMdd"
+        guard let date = fmt.date(from: dateStr) else { return dateStr }
+        let disp = DateFormatter()
+        disp.locale = Locale(identifier: "ja_JP")
+        disp.dateFormat = "M/d(E)"
+        return disp.string(from: date)
+    }
+
+    private func venues(for day: String) -> [String] {
         let order = ["札幌","函館","福島","新潟","中山","東京","中京","京都","阪神","小倉"]
         let present = Set(races.filter { $0.day == day }.map { $0.venue })
         return order.filter { present.contains($0) }
@@ -50,6 +65,12 @@ struct RaceSelectionView: View {
         .toolbarBackground(SplatTheme.surface, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .onAppear {
+            if selectedDay.isEmpty {
+                let dateFmt = DateFormatter()
+                dateFmt.dateFormat = "yyyyMMdd"
+                let today = dateFmt.string(from: Date())
+                selectedDay = uniqueDays.first(where: { $0 >= today }) ?? uniqueDays.first ?? ""
+            }
             if selectedVenue.isEmpty {
                 selectedVenue = currentVenues.first ?? ""
             }
@@ -62,27 +83,25 @@ struct RaceSelectionView: View {
     // MARK: - Day Selector
 
     private var daySelector: some View {
-        HStack(spacing: 0) {
-            ForEach(RaceDay.allCases, id: \.self) { day in
-                Button(action: {
-                    withAnimation(.spring(response: 0.3)) { selectedDay = day }
-                }) {
-                    VStack(spacing: 3) {
-                        Text(day.label)
-                            .font(.system(size: 15, weight: .black))
-                        Text(dateString(for: day))
-                            .font(.system(size: 11, weight: .bold))
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 0) {
+                ForEach(uniqueDays, id: \.self) { day in
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) { selectedDay = day }
+                    }) {
+                        Text(dayLabel(for: day))
+                            .font(.system(size: 14, weight: .black))
+                            .foregroundColor(selectedDay == day ? SplatTheme.cyan : .white.opacity(0.38))
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 14)
+                            .overlay(
+                                Rectangle()
+                                    .fill(selectedDay == day ? SplatTheme.cyan : Color.clear)
+                                    .frame(height: 3)
+                                    .shadow(color: SplatTheme.cyan.opacity(0.7), radius: 5),
+                                alignment: .bottom
+                            )
                     }
-                    .foregroundColor(selectedDay == day ? SplatTheme.cyan : .white.opacity(0.38))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .overlay(
-                        Rectangle()
-                            .fill(selectedDay == day ? SplatTheme.cyan : Color.clear)
-                            .frame(height: 3)
-                            .shadow(color: SplatTheme.cyan.opacity(0.7), radius: 5),
-                        alignment: .bottom
-                    )
                 }
             }
         }
@@ -119,19 +138,6 @@ struct RaceSelectionView: View {
         .background(SplatTheme.surface)
         .shadow(color: .black.opacity(0.35), radius: 6, y: 3)
     }
-
-    private func dateString(for day: RaceDay) -> String {
-        let calendar = Calendar.current
-        var date = Date()
-        while calendar.component(.weekday, from: date) != 7 {
-            date = calendar.date(byAdding: .day, value: 1, to: date)!
-        }
-        let sat = date
-        let sun = calendar.date(byAdding: .day, value: 1, to: sat)!
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M/d"
-        return formatter.string(from: day == .saturday ? sat : sun)
-    }
 }
 
 // MARK: - RaceCard
@@ -141,7 +147,6 @@ struct RaceCard: View {
 
     var body: some View {
         ZStack {
-            // Colored glow shadow
             RoundedRectangle(cornerRadius: 16)
                 .fill(race.grade.color.opacity(0.28))
                 .offset(x: 3, y: 5)
@@ -155,7 +160,6 @@ struct RaceCard: View {
                 )
 
             HStack(spacing: 14) {
-                // Grade + race number
                 VStack(spacing: 6) {
                     Text(race.grade.displayText)
                         .font(.system(size: 11, weight: .black))
@@ -172,7 +176,6 @@ struct RaceCard: View {
                 }
                 .frame(width: 44)
 
-                // Race info
                 VStack(alignment: .leading, spacing: 5) {
                     Text(race.name)
                         .font(.system(size: 15, weight: .black))
@@ -198,7 +201,6 @@ struct RaceCard: View {
 
                 Spacer()
 
-                // Start time
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(race.time)
                         .font(.system(size: 17, weight: .black, design: .rounded))

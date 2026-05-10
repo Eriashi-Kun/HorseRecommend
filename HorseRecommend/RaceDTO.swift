@@ -20,7 +20,7 @@ struct RaceDTO: Codable {
 
     func toRace() -> Race {
         Race(
-            day: RaceDay(rawValue: day) ?? .saturday,
+            day: day,
             venue: venue,
             raceNumber: raceNumber,
             name: name,

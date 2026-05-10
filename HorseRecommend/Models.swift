@@ -30,12 +30,6 @@ struct Horse: Identifiable {
 
 // MARK: - Race
 
-enum RaceDay: String, CaseIterable, Equatable {
-    case saturday
-    case sunday
-    var label: String { self == .saturday ? "土曜日" : "日曜日" }
-}
-
 enum RaceGrade: String {
     case g1 = "G1"
     case g2 = "G2"
@@ -59,7 +53,7 @@ enum RaceGrade: String {
 
 struct Race: Identifiable {
     let id = UUID()
-    let day: RaceDay
+    let day: String   // "YYYYMMDD" date string from backend
     let venue: String
     let raceNumber: String
     let name: String
