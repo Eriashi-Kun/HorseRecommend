@@ -39,17 +39,25 @@ def _get(url: str, encoding: str = 'EUC-JP') -> BeautifulSoup | None:
         return None
 
 
+def _valid_race_id(rid: str, year: str) -> bool:
+    return (
+        rid[:4] == year
+        and rid[4:6] in VENUE_CODES
+        and '01' <= rid[10:12] <= '12'
+    )
+
+
 def fetch_race_ids_for_date(date_str: str) -> list[str]:
-    # race_list_sub.html に12桁race_idが埋め込まれている
     soup = _get(f'https://race.netkeiba.com/top/race_list_sub.html?kaisai_date={date_str}')
     if not soup:
         return []
 
+    year = date_str[:4]
     text = str(soup)
     seen, ids = set(), []
     for m in re.finditer(r'\b(\d{12})\b', text):
         rid = m.group(1)
-        if rid not in seen:
+        if rid not in seen and _valid_race_id(rid, year):
             seen.add(rid)
             ids.append(rid)
     return ids
@@ -60,9 +68,41 @@ def fetch_race_detail(race_id: str, day: str) -> dict | None:
     if not soup:
         return None
 
-    # Venue and race number from race_id
+    # Venue fallback from race_id
     venue = VENUE_CODES.get(race_id[4:6], '不明')
     race_number = f'{int(race_id[10:12])}R'
+    grade = 'open'
+
+    # Page title is the most reliable source for venue and grade
+    # e.g. "NHKマイルカップ(G1) 2026年5月10日 東京競馬場 出馬表"
+    title_el = soup.find('title')
+    if title_el:
+        t = title_el.get_text()
+        for v in ['札幌','函館','福島','新潟','中山','東京','中京','京都','阪神','小倉']:
+            if v in t:
+                venue = v
+                break
+        if 'G1' in t:
+            grade = 'g1'
+        elif 'G2' in t:
+            grade = 'g2'
+        elif 'G3' in t:
+            grade = 'g3'
+
+    # Grade from CSS class name — netkeiba uses image sprites so get_text() is empty
+    # Icon_GradeType1=G1, Icon_GradeType2=G2, Icon_GradeType3=G3, Icon_GradeType5=Listed
+    if grade == 'open':
+        for el in soup.select('[class*="GradeType"]'):
+            classes = ' '.join(el.get('class', []))
+            if 'GradeType1' in classes:
+                grade = 'g1'
+            elif 'GradeType2' in classes:
+                grade = 'g2'
+            elif 'GradeType3' in classes:
+                grade = 'g3'
+            elif 'GradeType5' in classes:
+                grade = 'listed'
+            break
 
     # Race name
     race_name = ''
@@ -70,22 +110,6 @@ def fetch_race_detail(race_id: str, day: str) -> dict | None:
         el = soup.select_one(sel)
         if el and el.get_text(strip=True):
             race_name = el.get_text(strip=True)
-            break
-
-    # Grade
-    grade = 'open'
-    for sel in ['.Icon_GradeType', '[class*="GradeType"]', '.grade']:
-        el = soup.select_one(sel)
-        if el:
-            t = el.get_text(strip=True).upper()
-            if 'G1' in t:
-                grade = 'g1'
-            elif 'G2' in t:
-                grade = 'g2'
-            elif 'G3' in t:
-                grade = 'g3'
-            elif t in ('L', 'LISTED'):
-                grade = 'listed'
             break
 
     # Distance, condition, start time
