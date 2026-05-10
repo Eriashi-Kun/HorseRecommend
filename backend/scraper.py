@@ -176,11 +176,58 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
             except ValueError:
                 pass
 
+        # 枠番: Waku + WakuN クラスを持つ td (N=1〜8)
+        gate = 0
+        gate_cell = next(
+            (td for td in row.find_all('td')
+             if any(c.startswith('Waku') and c != 'Waku' for c in td.get('class', []))),
+            None
+        )
+        if gate_cell:
+            try:
+                gate = int(gate_cell.get_text(strip=True))
+            except ValueError:
+                pass
+
+        # 性齢: Barei クラスのセル (例: "牡3", "牝4", "セ5")
+        sex, age = '', 0
+        barei_cell = row.select_one('td.Barei')
+        if barei_cell:
+            t = barei_cell.get_text(strip=True)
+            if t:
+                sex = t[0] if t[0] in '牡牝セ' else ''
+                m = re.search(r'\d+', t)
+                if m:
+                    try:
+                        age = int(m.group())
+                    except ValueError:
+                        pass
+
+        # 斤量: Kinryo クラスのセル (例: "57.0")
+        weight = 0.0
+        kinryo_cell = row.select_one('td.Kinryo') or row.select_one('td.Txt_C.Kinryo')
+        if kinryo_cell:
+            try:
+                weight = float(kinryo_cell.get_text(strip=True))
+            except ValueError:
+                pass
+
+        # 騎手: Jockey クラスのセル
+        jockey = ''
+        jockey_cell = row.select_one('td.Jockey')
+        if jockey_cell:
+            jockey = jockey_cell.get_text(strip=True)
+
         horses.append({
             'number': horse_num,
             'name': name,
             'odds': odds,
             'running_style': None,
+            'gate': gate,
+            'sex': sex,
+            'age': age,
+            'jockey': jockey,
+            'weight': weight,
         })
 
     return horses

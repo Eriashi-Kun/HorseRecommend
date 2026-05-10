@@ -34,8 +34,23 @@ def recommend(race: dict, pred_type: str) -> dict:
 def _call_claude(race: dict, pred_type: str) -> dict:
     label, instruction = _TYPE_LABELS.get(pred_type, ("予想", "おすすめ馬を選んでください。"))
 
+    def _horse_line(h: dict) -> str:
+        parts = [f"  {h['number']}番"]
+        if h.get('gate'):
+            parts.append(f"[枠{h['gate']}]")
+        parts.append(f" {h['name']}")
+        attrs = []
+        if h.get('sex') and h.get('age'):
+            attrs.append(f"{h['sex']}{h['age']}歳")
+        if h.get('weight'):
+            attrs.append(f"斤量{h['weight']}kg")
+        if h.get('jockey'):
+            attrs.append(f"{h['jockey']}騎手")
+        attrs.append(f"オッズ{h['odds']}倍")
+        return "".join(parts) + "　" + "　".join(attrs)
+
     horses_lines = "\n".join(
-        f"  {h['number']}番 {h['name']}　オッズ {h['odds']}倍"
+        _horse_line(h)
         for h in sorted(race["horses"], key=lambda x: x["number"])
     )
 

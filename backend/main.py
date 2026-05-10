@@ -68,6 +68,11 @@ class HorseInput(BaseModel):
     number: int
     name: str
     odds: float
+    gate: int = 0
+    sex: str = ""
+    age: int = 0
+    jockey: str = ""
+    weight: float = 0.0
 
 class RaceInput(BaseModel):
     name: str

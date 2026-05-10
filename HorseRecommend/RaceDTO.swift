@@ -65,7 +65,11 @@ struct RecommendRequest: Encodable {
             distance = race.distance
             condition = race.condition
             race_number = race.raceNumber
-            horses = race.horses.map { HorseInput(number: $0.number, name: $0.name, odds: $0.odds) }
+            horses = race.horses.map {
+                HorseInput(number: $0.number, name: $0.name, odds: $0.odds,
+                           gate: $0.gate, sex: $0.sex, age: $0.age,
+                           jockey: $0.jockey, weight: $0.weight)
+            }
         }
     }
 
@@ -73,6 +77,11 @@ struct RecommendRequest: Encodable {
         let number: Int
         let name: String
         let odds: Double
+        let gate: Int
+        let sex: String
+        let age: Int
+        let jockey: String
+        let weight: Double
     }
 }
 
@@ -95,9 +104,14 @@ struct HorseDTO: Codable {
     let name: String
     let odds: Double
     let runningStyle: String?
+    let gate: Int?
+    let sex: String?
+    let age: Int?
+    let jockey: String?
+    let weight: Double?
 
     enum CodingKeys: String, CodingKey {
-        case number, name, odds
+        case number, name, odds, gate, sex, age, jockey, weight
         case runningStyle = "running_style"
     }
 
@@ -109,6 +123,10 @@ struct HorseDTO: Codable {
         case "closer":  style = .closer
         default:        style = .midpack
         }
-        return Horse(number: number, name: name, odds: odds, runningStyle: style)
+        return Horse(
+            number: number, name: name, odds: odds, runningStyle: style,
+            gate: gate ?? 0, sex: sex ?? "", age: age ?? 0,
+            jockey: jockey ?? "", weight: weight ?? 0
+        )
     }
 }
