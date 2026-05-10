@@ -30,8 +30,8 @@ struct RecommendationResultView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
-        .onAppear {
-            vm.load(type: type, race: race)
+        .task {
+            await vm.load(type: type, race: race)
             withAnimation(.spring(response: 0.55, dampingFraction: 0.72).delay(0.08)) {
                 appeared = true
             }

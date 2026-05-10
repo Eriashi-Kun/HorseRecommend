@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from scraper import fetch_races_for_upcoming
+from recommender import recommend
 from datetime import datetime
 import asyncio
 import logging
@@ -58,6 +60,37 @@ def get_races():
 def refresh_races():
     _refresh_cache_sync()
     return {"status": "ok", "count": len(_cache["races"] or [])}
+
+
+# MARK: - Recommendation
+
+class HorseInput(BaseModel):
+    number: int
+    name: str
+    odds: float
+
+class RaceInput(BaseModel):
+    name: str
+    venue: str
+    race_number: str
+    day: str
+    distance: str
+    condition: str
+    horses: list[HorseInput]
+
+class RecommendRequest(BaseModel):
+    race: RaceInput
+    type: str  # "safe" | "midRange" | "longShot"
+
+
+@app.post("/recommend")
+def get_recommendation(body: RecommendRequest):
+    try:
+        race_dict = body.race.model_dump()
+        return recommend(race_dict, body.type)
+    except Exception as e:
+        logger.error(f"Recommendation failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/health")

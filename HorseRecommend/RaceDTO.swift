@@ -43,6 +43,53 @@ struct RaceDTO: Codable {
     }
 }
 
+// MARK: - Recommendation DTOs
+
+struct RecommendRequest: Encodable {
+    let race: RaceInput
+    let type: String
+
+    struct RaceInput: Encodable {
+        let name: String
+        let venue: String
+        let day: String
+        let distance: String
+        let condition: String
+        let horses: [HorseInput]
+        let race_number: String
+
+        init(from race: Race) {
+            name = race.name
+            venue = race.venue
+            day = race.day
+            distance = race.distance
+            condition = race.condition
+            race_number = race.raceNumber
+            horses = race.horses.map { HorseInput(number: $0.number, name: $0.name, odds: $0.odds) }
+        }
+    }
+
+    struct HorseInput: Encodable {
+        let number: Int
+        let name: String
+        let odds: Double
+    }
+}
+
+struct RecommendResponse: Decodable {
+    let picks: [Pick]
+
+    struct Pick: Decodable {
+        let number: Int
+        let name: String
+        let odds: Double
+        let score: Double
+        let reason: String
+    }
+}
+
+// MARK: - Horse DTO
+
 struct HorseDTO: Codable {
     let number: Int
     let name: String

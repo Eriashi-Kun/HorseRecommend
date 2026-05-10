@@ -95,6 +95,14 @@ enum PredictionType: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    var apiKey: String {
+        switch self {
+        case .safe:     return "safe"
+        case .midRange: return "midRange"
+        case .longShot: return "longShot"
+        }
+    }
+
     var subtitle: String {
         switch self {
         case .safe:     return "人気馬を堅実に狙う"
