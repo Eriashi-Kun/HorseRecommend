@@ -91,8 +91,6 @@ def fetch_race_detail(race_id: str, day: str) -> dict | None:
         grade = 'g2'
     elif soup.select_one('.Icon_GradeType3'):
         grade = 'g3'
-    elif soup.select_one('.Icon_GradeType5'):
-        grade = 'listed'
 
     # Race name
     race_name = ''

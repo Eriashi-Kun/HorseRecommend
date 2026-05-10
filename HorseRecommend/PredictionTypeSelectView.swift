@@ -71,13 +71,15 @@ struct PredictionTypeSelectView: View {
     private var raceBar: some View {
         Button(action: { showRaceSelection = true }) {
             HStack(spacing: 10) {
-                Text(race.grade.displayText)
-                    .font(.system(size: 11, weight: .black))
-                    .foregroundColor(SplatTheme.bg)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(race.grade.color)
-                    .cornerRadius(5)
+                if race.grade != .open && race.grade != .special {
+                    Text(race.grade.displayText)
+                        .font(.system(size: 11, weight: .black))
+                        .foregroundColor(SplatTheme.bg)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(race.grade.color)
+                        .cornerRadius(5)
+                }
 
                 Text(race.venue)
                     .font(.system(size: 13, weight: .black))

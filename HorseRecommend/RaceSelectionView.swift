@@ -33,7 +33,7 @@ struct RaceSelectionView: View {
     private var displayedRaces: [Race] {
         races
             .filter { $0.day == selectedDay && $0.venue == selectedVenue }
-            .sorted { $0.raceNumber < $1.raceNumber }
+            .sorted { $0.time < $1.time }
     }
 
     var body: some View {
@@ -161,15 +161,16 @@ struct RaceCard: View {
 
             HStack(spacing: 14) {
                 VStack(spacing: 6) {
-                    Text(race.grade.displayText)
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(SplatTheme.bg)
-                        .frame(minWidth: 32)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 4)
-                        .background(race.grade.color)
-                        .cornerRadius(6)
-
+                    if race.grade != .open && race.grade != .special {
+                        Text(race.grade.displayText)
+                            .font(.system(size: 11, weight: .black))
+                            .foregroundColor(SplatTheme.bg)
+                            .frame(minWidth: 32)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 4)
+                            .background(race.grade.color)
+                            .cornerRadius(6)
+                    }
                     Text(race.raceNumber)
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white.opacity(0.38))
