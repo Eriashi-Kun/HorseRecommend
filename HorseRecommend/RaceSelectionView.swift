@@ -36,6 +36,10 @@ struct RaceSelectionView: View {
             .sorted { $0.time < $1.time }
     }
 
+    private var nextRaceID: UUID? {
+        displayedRaces.first(where: { !$0.isPast })?.id
+    }
+
     var body: some View {
         ZStack {
             SplatTheme.bg.ignoresSafeArea()
@@ -46,13 +50,16 @@ struct RaceSelectionView: View {
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 12) {
                         ForEach(displayedRaces) { race in
+                            let past = race.isPast
+                            let next = race.id == nextRaceID
                             Button {
                                 onSelect(race)
                                 dismiss()
                             } label: {
-                                RaceCard(race: race)
+                                RaceCard(race: race, isPast: past, isNext: next)
                             }
                             .buttonStyle(ScalePressStyle())
+                            .disabled(past)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -144,60 +151,66 @@ struct RaceSelectionView: View {
 
 struct RaceCard: View {
     let race: Race
+    var isPast: Bool = false
+    var isNext: Bool = false
+
+    private var accentColor: Color {
+        isNext ? SplatTheme.yellow : race.grade.color
+    }
 
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16)
-                .fill(race.grade.color.opacity(0.28))
+                .fill(accentColor.opacity(isNext ? 0.35 : 0.18))
                 .offset(x: 3, y: 5)
-                .blur(radius: 5)
+                .blur(radius: isNext ? 8 : 4)
 
             RoundedRectangle(cornerRadius: 16)
                 .fill(SplatTheme.card)
                 .overlay(
                     RoundedRectangle(cornerRadius: 16)
-                        .stroke(race.grade.color.opacity(0.38), lineWidth: 1.5)
+                        .stroke(
+                            accentColor,
+                            lineWidth: isNext ? 2.0 : 1.0
+                        )
+                        .opacity(isNext ? 1.0 : 0.38)
                 )
 
             HStack(spacing: 14) {
                 VStack(spacing: 6) {
-                    if race.grade != .open && race.grade != .special {
+                    if race.showsGradeBadge {
                         Text(race.grade.displayText)
                             .font(.system(size: 11, weight: .black))
                             .foregroundColor(SplatTheme.bg)
                             .frame(minWidth: 32)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 4)
-                            .background(race.grade.color)
+                            .background(isPast ? Color.gray : race.grade.color)
                             .cornerRadius(6)
                     }
                     Text(race.raceNumber)
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white.opacity(0.38))
+                        .foregroundColor(.white.opacity(isPast ? 0.22 : 0.38))
                 }
                 .frame(width: 44)
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text(race.name)
                         .font(.system(size: 15, weight: .black))
-                        .foregroundColor(.white)
+                        .foregroundColor(isPast ? .white.opacity(0.35) : .white)
                         .lineLimit(1)
 
                     HStack(spacing: 6) {
                         Text(race.distance)
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white.opacity(0.48))
                         Text("·")
-                            .foregroundColor(.white.opacity(0.22))
                         Text(race.condition)
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white.opacity(0.48))
                         Text("·")
-                            .foregroundColor(.white.opacity(0.22))
                         Text("\(race.horses.count)頭")
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white.opacity(0.48))
                     }
+                    .foregroundColor(.white.opacity(isPast ? 0.22 : 0.48))
                 }
 
                 Spacer()
@@ -205,19 +218,37 @@ struct RaceCard: View {
                 VStack(alignment: .trailing, spacing: 2) {
                     Text(race.time)
                         .font(.system(size: 17, weight: .black, design: .rounded))
-                        .foregroundColor(race.grade.color)
-                        .shadow(color: race.grade.color.opacity(0.5), radius: 4)
-                    Text("発走")
+                        .foregroundColor(isPast ? .white.opacity(0.25) : accentColor)
+                        .shadow(
+                            color: accentColor.opacity(isNext ? 0.9 : 0.0),
+                            radius: isNext ? 10 : 0
+                        )
+                    Text(isPast ? "終了" : (isNext ? "次走" : "発走"))
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.white.opacity(0.30))
+                        .foregroundColor(
+                            isPast ? .white.opacity(0.22)
+                            : isNext ? SplatTheme.yellow.opacity(0.85)
+                            : .white.opacity(0.30)
+                        )
                 }
 
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .black))
-                    .foregroundColor(.white.opacity(0.22))
+                if isPast {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.18))
+                } else if isNext {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .black))
+                        .foregroundColor(SplatTheme.yellow.opacity(0.7))
+                } else {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .black))
+                        .foregroundColor(.white.opacity(0.22))
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
         }
+        .opacity(isPast ? 0.5 : 1.0)
     }
 }

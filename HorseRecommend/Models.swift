@@ -62,6 +62,28 @@ struct Race: Identifiable {
     let condition: String
     let time: String
     let horses: [Horse]
+
+    var isPast: Bool {
+        let dateFmt = DateFormatter()
+        dateFmt.dateFormat = "yyyyMMdd"
+        let today = dateFmt.string(from: Date())
+        if day < today { return true }
+        if day > today { return false }
+        let timeFmt = DateFormatter()
+        timeFmt.dateFormat = "HH:mm"
+        return time < timeFmt.string(from: Date())
+    }
+
+    // OP badge only for named OP races — not for class-based races
+    var showsGradeBadge: Bool {
+        switch grade {
+        case .g1, .g2, .g3, .listed: return true
+        case .open, .special:
+            return !name.contains("未勝利")
+                && !name.contains("勝クラス")
+                && !name.contains("新馬")
+        }
+    }
 }
 
 // MARK: - PredictionType
