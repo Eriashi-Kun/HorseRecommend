@@ -153,16 +153,19 @@ struct PredictionTypeSelectView: View {
     // MARK: - Go Button
 
     private var goButton: some View {
-        Button { navigate = true } label: {
-            Text("予想スタート！")
+        let past = race.isPast
+        return Button { if !past { navigate = true } } label: {
+            Text(past ? "レース終了" : "予想スタート！")
                 .font(.system(size: 20, weight: .black, design: .rounded))
-            .foregroundColor(SplatTheme.bg)
-            .frame(maxWidth: .infinity)
+                .foregroundColor(past ? .white.opacity(0.35) : SplatTheme.bg)
+                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(SplatButtonStyle(color: selected.color, height: 64))
+        .buttonStyle(SplatButtonStyle(color: past ? Color.gray.opacity(0.3) : selected.color, height: 64))
+        .disabled(past)
         .padding(.horizontal, 20)
         .padding(.bottom, 48)
         .animation(.easeInOut(duration: 0.3), value: selected)
+        .animation(.easeInOut(duration: 0.2), value: past)
     }
 }
 
