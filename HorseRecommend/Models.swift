@@ -32,8 +32,11 @@ struct Horse: Identifiable {
     let jockey: String
     let weight: Double
 
+    let horseId: String
+
     init(number: Int, name: String, odds: Double, runningStyle: RunningStyle,
-         gate: Int = 0, sex: String = "", age: Int = 0, jockey: String = "", weight: Double = 0) {
+         gate: Int = 0, sex: String = "", age: Int = 0, jockey: String = "", weight: Double = 0,
+         horseId: String = "") {
         self.number = number
         self.name = name
         self.odds = odds
@@ -43,6 +46,7 @@ struct Horse: Identifiable {
         self.age = age
         self.jockey = jockey
         self.weight = weight
+        self.horseId = horseId
     }
 }
 

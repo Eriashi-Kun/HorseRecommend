@@ -218,6 +218,14 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
         if jockey_cell:
             jockey = jockey_cell.get_text(strip=True)
 
+        # 馬ID: HorseInfo の <a href> から抽出（過去成績取得に使用）
+        horse_id = ''
+        a_tag = name_cell.select_one('a[href]')
+        if a_tag:
+            m = re.search(r'/horse/(\w+)', a_tag.get('href', ''))
+            if m:
+                horse_id = m.group(1)
+
         horses.append({
             'number': horse_num,
             'name': name,
@@ -228,9 +236,54 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
             'age': age,
             'jockey': jockey,
             'weight': weight,
+            'horse_id': horse_id,
         })
 
     return horses
+
+
+def fetch_horse_past_results(horse_id: str, n: int = 3) -> list[dict]:
+    """db.netkeiba.com の馬ページから直近n走の成績を取得する"""
+    if not horse_id:
+        return []
+    soup = _get(f'https://db.netkeiba.com/horse/{horse_id}/', encoding='EUC-JP')
+    if not soup:
+        return []
+
+    table = soup.select_one('table.db_h_race_results')
+    if not table:
+        return []
+
+    # ヘッダー行からカラム名→インデックスのマップを作成
+    header_row = table.find('tr')
+    if not header_row:
+        return []
+    headers = [th.get_text(strip=True) for th in header_row.find_all(['th', 'td'])]
+    col = {h: i for i, h in enumerate(headers)}
+
+    results = []
+    for row in table.find_all('tr')[1:n + 1]:
+        tds = row.find_all('td')
+        if not tds:
+            continue
+
+        def _get(name: str, default: str = '') -> str:
+            idx = col.get(name, -1)
+            return tds[idx].get_text(strip=True) if 0 <= idx < len(tds) else default
+
+        finish = _get('着順')
+        if not finish:
+            continue
+        results.append({
+            'finish': finish,
+            'race_name': _get('レース名'),
+            'distance': _get('距離'),
+            'condition': _get('馬場'),
+            'popularity': _get('人気'),
+            'venue': _get('開催'),
+        })
+
+    return results
 
 
 def fetch_races_for_upcoming() -> list[dict]:

@@ -73,6 +73,7 @@ class HorseInput(BaseModel):
     age: int = 0
     jockey: str = ""
     weight: float = 0.0
+    horse_id: str = ""
 
 class RaceInput(BaseModel):
     name: str

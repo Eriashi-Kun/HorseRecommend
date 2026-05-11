@@ -3,8 +3,10 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 
 from anthropic import Anthropic
+from scraper import fetch_horse_past_results
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,23 @@ client = Anthropic()  # reads ANTHROPIC_API_KEY from environment
 
 # Server-side cache keyed by (day, venue, race_number, type) to minimise API costs
 _cache: dict[tuple, dict] = {}
+
+# 馬ごとの過去成績キャッシュ（horse_id → list[dict]）
+_horse_results_cache: dict[str, list] = {}
+
+
+def _get_past_results(horses: list[dict]) -> dict[str, list]:
+    """全馬の過去3走を取得（未取得分のみfetch、キャッシュ済みは再利用）"""
+    results: dict[str, list] = {}
+    for h in horses:
+        hid = h.get('horse_id', '')
+        if not hid:
+            continue
+        if hid not in _horse_results_cache:
+            _horse_results_cache[hid] = fetch_horse_past_results(hid, n=3)
+            time.sleep(0.3)
+        results[hid] = _horse_results_cache[hid]
+    return results
 
 _TYPE_LABELS = {
     "safe":      ("固め",  "人気上位馬を堅実に狙う。オッズが低く安定感のある馬を最大3頭選んでください。"),
@@ -34,6 +53,8 @@ def recommend(race: dict, pred_type: str) -> dict:
 def _call_claude(race: dict, pred_type: str) -> dict:
     label, instruction = _TYPE_LABELS.get(pred_type, ("予想", "おすすめ馬を選んでください。"))
 
+    past_map = _get_past_results(race["horses"])
+
     def _horse_line(h: dict) -> str:
         parts = [f"  {h['number']}番"]
         if h.get('gate'):
@@ -47,6 +68,15 @@ def _call_claude(race: dict, pred_type: str) -> dict:
         if h.get('jockey'):
             attrs.append(f"{h['jockey']}騎手")
         attrs.append(f"オッズ{h['odds']}倍")
+
+        past = past_map.get(h.get('horse_id', ''), [])
+        if past:
+            past_str = '→'.join(
+                f"{r['finish']}着({r.get('distance','')}{r.get('condition','')} {r.get('popularity','')}人気)"
+                for r in past
+            )
+            attrs.append(f"前3走[{past_str}]")
+
         return "".join(parts) + "　" + "　".join(attrs)
 
     horses_lines = "\n".join(
