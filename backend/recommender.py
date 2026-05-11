@@ -7,6 +7,7 @@ import time
 
 from anthropic import Anthropic
 from scraper import fetch_horse_past_results
+from weather import get_race_weather
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def _call_claude(race: dict, pred_type: str) -> dict:
     label, instruction = _TYPE_LABELS.get(pred_type, ("予想", "おすすめ馬を選んでください。"))
 
     past_map = _get_past_results(race["horses"])
+    weather = get_race_weather(race["venue"], race["day"], race.get("time", ""))
 
     def _horse_line(h: dict) -> str:
         parts = [f"  {h['number']}番"]
@@ -84,11 +86,20 @@ def _call_claude(race: dict, pred_type: str) -> dict:
         for h in sorted(race["horses"], key=lambda x: x["number"])
     )
 
+    weather_line = ''
+    if weather:
+        weather_line = (
+            f"\n天気: {weather['description']}　"
+            f"気温{weather['temp']}°C　"
+            f"湿度{weather['humidity']}%　"
+            f"風速{weather['wind_speed']}m/s"
+        )
+
     prompt = f"""あなたは競馬予想の専門家です。以下のレース情報を分析し、「{label}」スタイルの予想をしてください。
 
 【レース情報】
 レース名: {race['name']}
-競馬場: {race['venue']}　{race['distance']}　馬場: {race['condition']}
+競馬場: {race['venue']}　{race['distance']}　馬場: {race['condition']}{weather_line}
 
 【出走馬】
 {horses_lines}

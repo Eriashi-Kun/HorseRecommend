@@ -53,6 +53,7 @@ struct RecommendRequest: Encodable {
         let name: String
         let venue: String
         let day: String
+        let time: String
         let distance: String
         let condition: String
         let horses: [HorseInput]
@@ -62,6 +63,7 @@ struct RecommendRequest: Encodable {
             name = race.name
             venue = race.venue
             day = race.day
+            time = race.time
             distance = race.distance
             condition = race.condition
             race_number = race.raceNumber

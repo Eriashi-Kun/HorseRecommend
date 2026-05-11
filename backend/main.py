@@ -80,6 +80,7 @@ class RaceInput(BaseModel):
     venue: str
     race_number: str
     day: str
+    time: str = ""
     distance: str
     condition: str
     horses: list[HorseInput]
