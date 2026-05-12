@@ -8,6 +8,8 @@ struct RecommendationResultView: View {
     @State private var appeared = false
     @State private var slotNumber: Int = 0
     @State private var radarProgress: Double = 0
+    @State private var shareImage: UIImage? = nil
+    @State private var showingShare = false
 
     var body: some View {
         ZStack {
@@ -34,6 +36,12 @@ struct RecommendationResultView: View {
             }
         }
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showingShare) {
+            if let img = shareImage {
+                ShareSheet(items: [img, "🐴 AIが選んだ一頭！ #HorseRecommend #競馬予想"])
+                    .presentationDetents([.medium, .large])
+            }
+        }
         .task {
             await vm.load(type: type, race: race)
             withAnimation(.spring(response: 0.55, dampingFraction: 0.72).delay(0.08)) {
@@ -95,7 +103,7 @@ struct RecommendationResultView: View {
     // MARK: - Top Bar
 
     private func topBar(rec: Recommendation) -> some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 8) {
             Button(action: { dismiss() }) {
                 HStack(spacing: 5) {
                     Image(systemName: "arrow.left")
@@ -114,6 +122,22 @@ struct RecommendationResultView: View {
 
             Spacer()
 
+            // シェアボタン
+            Button {
+                shareImage = renderShareCard(rec: rec)
+                showingShare = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 14, weight: .black))
+                    .foregroundColor(type.color)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .background(type.color.opacity(0.15))
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(type.color.opacity(0.4), lineWidth: 1))
+            }
+            .buttonStyle(ScalePressStyle())
+
             HStack(spacing: 6) {
                 Text(type.emoji).font(.system(size: 16))
                 Text(type.rawValue + " 予想")
@@ -127,6 +151,14 @@ struct RecommendationResultView: View {
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(type.color.opacity(0.35), lineWidth: 1))
         }
         .opacity(appeared ? 1 : 0)
+    }
+
+    @MainActor
+    private func renderShareCard(rec: Recommendation) -> UIImage? {
+        let card = ShareCardView(rec: rec, type: type)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        return renderer.uiImage
     }
 
     // MARK: - Race Strip
