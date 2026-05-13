@@ -6,7 +6,7 @@ import re
 import time
 
 from anthropic import Anthropic
-from scraper import fetch_horse_past_results
+from scraper import fetch_horse_past_results, fetch_jockey_stats
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,9 @@ _cache: dict[tuple, dict] = {}
 
 # 馬ごとの過去成績キャッシュ（horse_id → list[dict]）
 _horse_results_cache: dict[str, list] = {}
+
+# 騎手成績キャッシュ（jockey_id → dict）
+_jockey_stats_cache: dict[str, dict] = {}
 
 
 def _get_past_results(horses: list[dict]) -> dict[str, list]:
@@ -32,6 +35,20 @@ def _get_past_results(horses: list[dict]) -> dict[str, list]:
         results[hid] = _horse_results_cache[hid]
     return results
 
+
+def _get_jockey_stats(horses: list[dict]) -> dict[str, dict]:
+    """全馬の騎手成績を取得（キャッシュ済みは再利用）"""
+    stats: dict[str, dict] = {}
+    for h in horses:
+        jid = h.get('jockey_id', '')
+        if not jid:
+            continue
+        if jid not in _jockey_stats_cache:
+            _jockey_stats_cache[jid] = fetch_jockey_stats(jid)
+            time.sleep(0.3)
+        stats[jid] = _jockey_stats_cache[jid]
+    return stats
+
 _TYPE_LABELS = {
     "safe":      ("固め",  "人気上位馬を堅実に狙う。オッズが低く安定感のある馬を最大3頭選んでください。"),
     "midRange":  ("中穴",  "オッズ5〜20倍の中穴ゾーンから配当妙味のある馬を最大3頭選んでください。"),
@@ -39,21 +56,61 @@ _TYPE_LABELS = {
 }
 
 
-def recommend(race: dict, pred_type: str) -> dict:
-    cache_key = (race["day"], race["venue"], race["race_number"], pred_type)
-    if cache_key in _cache:
-        logger.info(f"Recommendation cache hit: {cache_key}")
-        return _cache[cache_key]
+def recommend(race: dict, pred_type: str, weights: dict = None) -> dict:
+    # weightsありの場合はキャッシュしない（ユーザーごとに異なる可能性）
+    if not weights or all(v == 50.0 for k, v in weights.items() if k in ('jockey', 'history', 'popularity')):
+        cache_key = (race["day"], race["venue"], race["race_number"], pred_type)
+        if cache_key in _cache:
+            logger.info(f"Recommendation cache hit: {cache_key}")
+            return _cache[cache_key]
+        result = _call_claude(race, pred_type, weights or {})
+        _cache[cache_key] = result
+        return result
 
-    result = _call_claude(race, pred_type)
-    _cache[cache_key] = result
-    return result
+    return _call_claude(race, pred_type, weights)
 
 
-def _call_claude(race: dict, pred_type: str) -> dict:
+def _weight_instruction(weights: dict) -> str:
+    """重みに応じたプロンプト指示文を生成する"""
+    if not weights:
+        return ''
+
+    lines = []
+    jockey_w = weights.get('jockey', 50)
+    history_w = weights.get('history', 50)
+    popularity_w = weights.get('popularity', 50)
+
+    if jockey_w == 0:
+        lines.append('・騎手の実力は無視してください')
+    elif jockey_w >= 80:
+        lines.append(f'・騎手の実力・勝率を特に重視してください（重視度{int(jockey_w)}/100）')
+    elif jockey_w >= 60:
+        lines.append(f'・騎手の実力を重視してください（重視度{int(jockey_w)}/100）')
+
+    if history_w == 0:
+        lines.append('・過去成績は無視してください')
+    elif history_w >= 80:
+        lines.append(f'・前走・過去成績を特に重視してください（重視度{int(history_w)}/100）')
+    elif history_w >= 60:
+        lines.append(f'・過去成績を重視してください（重視度{int(history_w)}/100）')
+
+    if popularity_w == 0:
+        lines.append('・人気・オッズは無視してください')
+    elif popularity_w <= 20:
+        lines.append(f'・人気・オッズはほぼ考慮しないでください（重視度{int(popularity_w)}/100）')
+    elif popularity_w >= 80:
+        lines.append(f'・人気・オッズを特に重視してください（重視度{int(popularity_w)}/100）')
+
+    if not lines:
+        return ''
+    return '\n【ユーザー設定の重視度】\n' + '\n'.join(lines)
+
+
+def _call_claude(race: dict, pred_type: str, weights: dict) -> dict:
     label, instruction = _TYPE_LABELS.get(pred_type, ("予想", "おすすめ馬を選んでください。"))
 
     past_map = _get_past_results(race["horses"])
+    jockey_map = _get_jockey_stats(race["horses"])
 
     def _horse_line(h: dict) -> str:
         parts = [f"  {h['number']}番"]
@@ -66,7 +123,11 @@ def _call_claude(race: dict, pred_type: str) -> dict:
         if h.get('weight'):
             attrs.append(f"斤量{h['weight']}kg")
         if h.get('jockey'):
-            attrs.append(f"{h['jockey']}騎手")
+            jockey_str = f"{h['jockey']}騎手"
+            jstats = jockey_map.get(h.get('jockey_id', ''), {})
+            if jstats.get('win_rate'):
+                jockey_str += f"(勝率{jstats['win_rate']} 複勝率{jstats.get('place_rate','')})"
+            attrs.append(jockey_str)
         attrs.append(f"オッズ{h['odds']}倍")
 
         past = past_map.get(h.get('horse_id', ''), [])
@@ -84,6 +145,8 @@ def _call_claude(race: dict, pred_type: str) -> dict:
         for h in sorted(race["horses"], key=lambda x: x["number"])
     )
 
+    weight_section = _weight_instruction(weights)
+
     prompt = f"""あなたは競馬予想の専門家です。以下のレース情報を分析し、「{label}」スタイルの予想をしてください。
 
 【レース情報】
@@ -94,7 +157,7 @@ def _call_claude(race: dict, pred_type: str) -> dict:
 {horses_lines}
 
 【予想スタイル：{label}】
-{instruction}
+{instruction}{weight_section}
 
 各推奨馬について、以下の観点を含む具体的な予想理由を3〜4文で書いてください：
 - この馬が今日の条件（距離・馬場・コース形態）に向いている理由

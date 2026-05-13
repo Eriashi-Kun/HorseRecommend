@@ -148,6 +148,7 @@ enum PredictionType: String, CaseIterable, Identifiable {
         case .longShot: return Color(red: 0.72, green: 0.00, blue: 1.00)  // purple
         }
     }
+
 }
 
 // MARK: - Recommendation

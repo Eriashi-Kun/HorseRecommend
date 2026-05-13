@@ -24,7 +24,7 @@ final class RecommendationViewModel: ObservableObject {
         defer { isLoading = false }
 
         do {
-            let picks = try await fetchFromNetwork(race: target, type: type)
+            let picks = try await fetchFromNetwork(race: target, type: type, weights: weights)
             recommendations = picks
             usedAI = true
         } catch {
@@ -43,12 +43,13 @@ final class RecommendationViewModel: ObservableObject {
 
     // MARK: - Network
 
-    private func fetchFromNetwork(race: Race, type: PredictionType) async throws -> [Recommendation] {
+    private func fetchFromNetwork(race: Race, type: PredictionType, weights: UserWeightsManager?) async throws -> [Recommendation] {
         guard let url = URL(string: "\(Config.backendURL)/recommend") else {
             throw URLError(.badURL)
         }
 
-        let body = RecommendRequest(race: .init(from: race), type: type.apiKey)
+        let w = weights.map { RecommendRequest.WeightsInput(from: $0) } ?? RecommendRequest.WeightsInput(from: UserWeightsManager())
+        let body = RecommendRequest(race: .init(from: race), type: type.apiKey, weights: w)
         var req = URLRequest(url: url, timeoutInterval: 60)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")

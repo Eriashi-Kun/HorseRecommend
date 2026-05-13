@@ -48,6 +48,23 @@ struct RaceDTO: Codable {
 struct RecommendRequest: Encodable {
     let race: RaceInput
     let type: String
+    let weights: WeightsInput
+
+    struct WeightsInput: Encodable {
+        let jockey: Double
+        let history: Double
+        let popularity: Double
+        let cuteness: Double
+        let intuition: Double
+
+        init(from manager: UserWeightsManager) {
+            jockey     = manager.jockey
+            history    = manager.history
+            popularity = manager.popularity
+            cuteness   = manager.cuteness
+            intuition  = manager.intuition
+        }
+    }
 
     struct RaceInput: Encodable {
         let name: String

@@ -85,16 +85,24 @@ class RaceInput(BaseModel):
     condition: str
     horses: list[HorseInput]
 
+class WeightsInput(BaseModel):
+    jockey: float = 50.0
+    history: float = 50.0
+    popularity: float = 50.0
+    cuteness: float = 0.0
+    intuition: float = 0.0
+
 class RecommendRequest(BaseModel):
     race: RaceInput
     type: str  # "safe" | "midRange" | "longShot"
+    weights: WeightsInput = WeightsInput()
 
 
 @app.post("/recommend")
 def get_recommendation(body: RecommendRequest):
     try:
         race_dict = body.race.model_dump()
-        return recommend(race_dict, body.type)
+        return recommend(race_dict, body.type, body.weights.model_dump())
     except Exception as e:
         logger.error(f"Recommendation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

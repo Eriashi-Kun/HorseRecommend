@@ -212,11 +212,17 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
             except ValueError:
                 pass
 
-        # 騎手: Jockey クラスのセル
+        # 騎手: Jockey クラスのセル（名前 + jockey_id）
         jockey = ''
+        jockey_id = ''
         jockey_cell = row.select_one('td.Jockey')
         if jockey_cell:
             jockey = jockey_cell.get_text(strip=True)
+            a_tag = jockey_cell.select_one('a[href]')
+            if a_tag:
+                m = re.search(r'/jockey/(\w+)', a_tag.get('href', ''))
+                if m:
+                    jockey_id = m.group(1)
 
         # 馬ID: HorseInfo の <a href> から抽出（過去成績取得に使用）
         horse_id = ''
@@ -235,6 +241,7 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
             'sex': sex,
             'age': age,
             'jockey': jockey,
+            'jockey_id': jockey_id,
             'weight': weight,
             'horse_id': horse_id,
         })
@@ -284,6 +291,48 @@ def fetch_horse_past_results(horse_id: str, n: int = 3) -> list[dict]:
         })
 
     return results
+
+
+def fetch_jockey_stats(jockey_id: str) -> dict:
+    """db.netkeiba.com の騎手ページから当年の勝率・複勝率を取得する"""
+    if not jockey_id:
+        return {}
+    soup = _get(f'https://db.netkeiba.com/jockey/result/recent/{jockey_id}/', encoding='EUC-JP')
+    if not soup:
+        return {}
+
+    table = soup.select_one('table.nk_tb_common')
+    if not table:
+        return {}
+
+    header_row = table.find('tr')
+    if not header_row:
+        return {}
+    headers = [th.get_text(strip=True) for th in header_row.find_all(['th', 'td'])]
+    col = {h: i for i, h in enumerate(headers)}
+
+    # 最新年のデータ行（2行目）を使用
+    rows = table.find_all('tr')[1:]
+    for row in rows:
+        tds = row.find_all('td')
+        if not tds:
+            continue
+
+        def _val(name: str) -> str:
+            idx = col.get(name, -1)
+            return tds[idx].get_text(strip=True) if 0 <= idx < len(tds) else ''
+
+        win_rate = _val('勝率')
+        place_rate = _val('複勝率')
+        wins = _val('1着')
+        if win_rate or wins:
+            return {
+                'win_rate': win_rate,
+                'place_rate': place_rate,
+                'wins': wins,
+            }
+
+    return {}
 
 
 def fetch_races_for_upcoming() -> list[dict]:

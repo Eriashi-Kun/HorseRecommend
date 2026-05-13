@@ -62,10 +62,15 @@ struct PredictionTypeSelectView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 8) {
-                Text(selected.emoji)
-                    .font(.system(size: 44))
-                    .rotationEffect(.degrees(14))
-                    .shadow(color: selected.color.opacity(0.6), radius: 10)
+                Image("HorseIcon")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 52, height: 52)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .colorMultiply(selected.color)
+                    .brightness(0.15)
+                    .rotationEffect(.degrees(6))
+                    .shadow(color: selected.color.opacity(0.7), radius: 12)
                 customizeButton
             }
             .padding(.top, 8)
@@ -257,17 +262,22 @@ struct SplatTypeCard: View {
                     .shadow(color: type.color.opacity(0.75), radius: isSelected ? 9 : 3)
                     .animation(.spring(response: 0.3, dampingFraction: 0.65), value: isSelected)
 
-                // Emoji badge — decoration gets the tilt
-                ZStack {
-                    Circle()
-                        .fill(type.color)
-                        .frame(width: 58, height: 58)
-                        .shadow(color: type.color.opacity(isSelected ? 0.70 : 0.28),
-                                radius: isSelected ? 14 : 5)
-                    Text(type.emoji)
-                        .font(.system(size: 28))
-                }
-                .rotationEffect(.degrees(-8))
+                // Horse icon — color shifts per type via colorMultiply
+                Image("HorseIcon")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 58, height: 58)
+                    .clipShape(Circle())
+                    .colorMultiply(type.color)
+                    .brightness(0.15)
+                    .shadow(color: type.color.opacity(isSelected ? 0.75 : 0.30),
+                            radius: isSelected ? 14 : 5)
+                    .overlay(
+                        Circle()
+                            .stroke(type.color, lineWidth: isSelected ? 2.5 : 1.0)
+                            .opacity(isSelected ? 0.9 : 0.35)
+                    )
+                    .rotationEffect(.degrees(-8))
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(type.rawValue)

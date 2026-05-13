@@ -54,6 +54,7 @@ struct RecommendationResultView: View {
                 appeared = true
             }
             if let rec = vm.current {
+                shareImage = renderShareCard(rec: rec)
                 try? await Task.sleep(nanoseconds: 300_000_000)
                 await animateSlot(target: rec.horse.number)
                 withAnimation(.easeOut(duration: 0.65)) { radarProgress = 1.0 }
@@ -63,6 +64,7 @@ struct RecommendationResultView: View {
             radarProgress = 0
             slotNumber = 0
             guard let rec = vm.current else { return }
+            shareImage = renderShareCard(rec: rec)
             Task {
                 try? await Task.sleep(nanoseconds: 350_000_000)
                 await animateSlot(target: rec.horse.number)
@@ -146,7 +148,6 @@ struct RecommendationResultView: View {
 
             // シェアボタン
             Button {
-                shareImage = renderShareCard(rec: rec)
                 showingShare = true
             } label: {
                 Image(systemName: "square.and.arrow.up")
@@ -161,7 +162,13 @@ struct RecommendationResultView: View {
             .buttonStyle(ScalePressStyle())
 
             HStack(spacing: 6) {
-                Text(type.emoji).font(.system(size: 16))
+                Image("HorseIcon")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 20, height: 20)
+                    .clipShape(Circle())
+                    .colorMultiply(type.color)
+                    .brightness(0.15)
                 Text(type.rawValue + " 予想")
                     .font(.system(size: 13, weight: .black))
                     .foregroundColor(type.color)
@@ -180,6 +187,7 @@ struct RecommendationResultView: View {
         let card = ShareCardView(rec: rec, type: type)
         let renderer = ImageRenderer(content: card)
         renderer.scale = 3.0
+        renderer.proposedSize = ProposedViewSize(width: 390, height: 520)
         return renderer.uiImage
     }
 
