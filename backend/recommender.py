@@ -101,6 +101,18 @@ def _weight_instruction(weights: dict) -> str:
     elif popularity_w >= 80:
         lines.append(f'・人気・オッズを特に重視してください（重視度{int(popularity_w)}/100）')
 
+    cuteness_w = weights.get('cuteness', 0)
+    if cuteness_w >= 60:
+        lines.append(f'・馬名の響き・可愛さ・ユニークさを重視してください（重視度{int(cuteness_w)}/100）')
+    elif cuteness_w >= 30:
+        lines.append(f'・馬名の印象も少し考慮してください（重視度{int(cuteness_w)}/100）')
+
+    intuition_w = weights.get('intuition', 0)
+    if intuition_w >= 60:
+        lines.append(f'・データに表れない直感的な穴馬を1頭加えてください（重視度{int(intuition_w)}/100）')
+    elif intuition_w >= 30:
+        lines.append(f'・意外性のある馬も少し考慮してください（重視度{int(intuition_w)}/100）')
+
     if not lines:
         return ''
     return '\n【ユーザー設定の重視度】\n' + '\n'.join(lines)
