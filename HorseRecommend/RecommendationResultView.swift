@@ -5,6 +5,7 @@ struct RecommendationResultView: View {
     let race: Race
     @StateObject private var vm = RecommendationViewModel()
     @Environment(InterstitialAdManager.self) private var adManager
+    @Environment(UserWeightsManager.self) private var weights
     @Environment(\.dismiss) private var dismiss
     @State private var appeared = false
     @State private var slotNumber: Int = 0
@@ -44,7 +45,7 @@ struct RecommendationResultView: View {
             }
         }
         .task {
-            await vm.load(type: type, race: race)
+            await vm.load(type: type, race: race, weights: weights)
             if !adShown {
                 adShown = true
                 adManager.showIfNeeded(raceID: "\(race.day)-\(race.venue)-\(race.raceNumber)")

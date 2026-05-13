@@ -7,6 +7,8 @@ struct PredictionTypeSelectView: View {
     @State private var isLoadingRaces = false
     @State private var navigate = false
     @State private var showRaceSelection = false
+    @State private var showCustomize = false
+    @Environment(UserWeightsManager.self) private var weights
 
     private let network = NetworkRaceRepository()
 
@@ -33,6 +35,10 @@ struct PredictionTypeSelectView: View {
                 }
                 .preferredColorScheme(.dark)
             }
+            .sheet(isPresented: $showCustomize) {
+                ParameterCustomizeView()
+                    .environment(weights)
+            }
             .navigationDestination(isPresented: $navigate) {
                 RecommendationResultView(type: selected, race: race)
             }
@@ -44,26 +50,61 @@ struct PredictionTypeSelectView: View {
     private var header: some View {
         HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: -10) {
-                Text("PICK")
+                Text("PAKA")
                     .font(.system(size: 56, weight: .black, design: .rounded))
                     .foregroundColor(selected.color)
                     .shadow(color: selected.color.opacity(0.7), radius: 16, y: 0)
                     .rotationEffect(.degrees(-2))
-                Text("YOUR TYPE")
+                Text("PICK")
                     .font(.system(size: 22, weight: .black, design: .rounded))
                     .foregroundColor(.white.opacity(0.80))
                     .padding(.leading, 4)
             }
             Spacer()
-            Text(selected.emoji)
-                .font(.system(size: 44))
-                .rotationEffect(.degrees(14))
-                .shadow(color: selected.color.opacity(0.6), radius: 10)
-                .padding(.top, 8)
+            VStack(alignment: .trailing, spacing: 8) {
+                Text(selected.emoji)
+                    .font(.system(size: 44))
+                    .rotationEffect(.degrees(14))
+                    .shadow(color: selected.color.opacity(0.6), radius: 10)
+                customizeButton
+            }
+            .padding(.top, 8)
         }
         .padding(.horizontal, 24)
         .padding(.top, 60)
         .padding(.bottom, 16)
+    }
+
+    private var customizeButton: some View {
+        Button(action: { showCustomize = true }) {
+            HStack(spacing: 5) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 11, weight: .black))
+                Text("カスタマイズ")
+                    .font(.system(size: 11, weight: .black))
+                if weights.isCustomized {
+                    Circle()
+                        .fill(SplatTheme.magenta)
+                        .frame(width: 6, height: 6)
+                        .shadow(color: SplatTheme.magenta, radius: 3)
+                }
+            }
+            .foregroundColor(weights.isCustomized ? SplatTheme.magenta : .white.opacity(0.5))
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(weights.isCustomized ? SplatTheme.magenta.opacity(0.15) : SplatTheme.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(
+                                weights.isCustomized ? SplatTheme.magenta.opacity(0.5) : Color.white.opacity(0.12),
+                                lineWidth: 1
+                            )
+                    )
+            )
+        }
+        .buttonStyle(ScalePressStyle())
     }
 
     // MARK: - Race Bar (tap to change race)

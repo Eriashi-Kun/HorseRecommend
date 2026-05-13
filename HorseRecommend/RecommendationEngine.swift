@@ -6,7 +6,7 @@ import Foundation
 struct RecommendationEngine {
 
     // おすすめ馬リストを返す（「別の馬を見る」はこのリストをインデックスで辿る）
-    func recommendations(race: Race, type: PredictionType) -> [Recommendation] {
+    func recommendations(race: Race, type: PredictionType, weights: UserWeightsManager? = nil) -> [Recommendation] {
         let candidates = selectCandidates(horses: race.horses, type: type)
         return candidates.map { horse in
             let rank = popularityRank(of: horse, in: race.horses)
@@ -15,7 +15,7 @@ struct RecommendationEngine {
                 race: race,
                 type: type,
                 reason: makeReason(horse: horse, race: race, type: type, rank: rank),
-                score: calculateScore(horse: horse, race: race, type: type),
+                score: calculateScore(horse: horse, race: race, type: type, weights: weights),
                 popularityRank: rank
             )
         }
@@ -54,8 +54,9 @@ struct RecommendationEngine {
 
     // MARK: - スコア計算（1〜99）
 
-    func calculateScore(horse: Horse, race: Race, type: PredictionType) -> Double {
-        var score = placeRate(odds: horse.odds) * 100
+    func calculateScore(horse: Horse, race: Race, type: PredictionType, weights: UserWeightsManager? = nil) -> Double {
+        let popularityFactor = weights.map { $0.popularity / 50.0 } ?? 1.0
+        var score = placeRate(odds: horse.odds) * 100 * popularityFactor
 
         let isDirt = race.distance.hasPrefix("ダ")
         let isWet  = race.condition == "重" || race.condition == "不良"
@@ -75,16 +76,42 @@ struct RecommendationEngine {
         // タイプ別のスコア意味づけ
         switch type {
         case .safe:
-            break // そのまま
+            break
         case .midRange:
-            // 中穴ゾーン(5〜20倍)にいる馬はボーナス
             if horse.odds >= 5 && horse.odds <= 20 { score += 10 }
         case .longShot:
-            // 高オッズ馬は爆穴スコアとして別計算
             score = (1.0 / horse.odds) * 300 + Double(horse.runningStyle == favoredStyle(for: nil, race: race) ? 20 : 0)
         }
 
+        if let w = weights {
+            // 騎手重視度: 0=オフ, 100=max +15
+            let jockeyStrength = stableHash(horse.jockey)
+            score += w.jockey / 100.0 * 15.0 * jockeyStrength
+
+            // 過去成績重視度: 0=オフ, 100=max +12
+            let formStrength = stableHash(horse.name + "_form")
+            score += w.history / 100.0 * 12.0 * formStrength
+
+            // 可愛さ: 0=オフ, 100=max +20
+            let cutenessScore = stableHash(horse.name + "_cute")
+            score += w.cuteness / 100.0 * 20.0 * cutenessScore
+
+            // 直感: 0=オフ, 100=max +15
+            let intuitionScore = stableHash(horse.name + race.day + "_luck")
+            score += w.intuition / 100.0 * 15.0 * intuitionScore
+        }
+
         return max(1, min(99, score.rounded()))
+    }
+
+    // FNV-1a hash → stable 0.0-1.0 value for a string
+    private func stableHash(_ s: String) -> Double {
+        var h: UInt64 = 14695981039346656037
+        for byte in s.utf8 {
+            h ^= UInt64(byte)
+            h = h &* 1099511628211
+        }
+        return Double(h % 1000) / 999.0
     }
 
     // MARK: - 推奨理由生成
