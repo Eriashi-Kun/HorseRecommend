@@ -71,6 +71,19 @@ struct RaceSelectionView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(SplatTheme.surface, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { dismiss() }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .black))
+                        .foregroundColor(.white.opacity(0.55))
+                        .frame(width: 36, height: 36)
+                        .background(SplatTheme.card)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(ScalePressStyle())
+            }
+        }
         .onAppear {
             if selectedDay.isEmpty {
                 let dateFmt = DateFormatter()

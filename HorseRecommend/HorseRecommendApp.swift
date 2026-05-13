@@ -11,6 +11,7 @@ import GoogleMobileAds
 @main
 struct HorseRecommendApp: App {
     @State private var adManager = InterstitialAdManager()
+    @State private var weights = UserWeightsManager()
 
     init() {
         MobileAds.shared.start()
@@ -20,6 +21,7 @@ struct HorseRecommendApp: App {
         WindowGroup {
             PredictionTypeSelectView()
                 .environment(adManager)
+                .environment(weights)
         }
     }
 }

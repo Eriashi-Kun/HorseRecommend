@@ -18,7 +18,7 @@ final class RecommendationViewModel: ObservableObject {
     }
 
     @MainActor
-    func load(type: PredictionType, race: Race? = nil) async {
+    func load(type: PredictionType, race: Race? = nil, weights: UserWeightsManager? = nil) async {
         let target = race ?? repository.fetchCurrentRace()
         isLoading = true
         defer { isLoading = false }
@@ -29,7 +29,7 @@ final class RecommendationViewModel: ObservableObject {
             usedAI = true
         } catch {
             print("AI recommendation failed, falling back to local engine: \(error)")
-            recommendations = engine.recommendations(race: target, type: type)
+            recommendations = engine.recommendations(race: target, type: type, weights: weights)
             usedAI = false
         }
         currentIndex = 0
