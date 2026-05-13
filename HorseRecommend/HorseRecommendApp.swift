@@ -6,12 +6,20 @@
 //
 
 import SwiftUI
+import GoogleMobileAds
 
 @main
 struct HorseRecommendApp: App {
+    @State private var adManager = InterstitialAdManager()
+
+    init() {
+        MobileAds.shared.start()
+    }
+
     var body: some Scene {
         WindowGroup {
             PredictionTypeSelectView()
+                .environment(adManager)
         }
     }
 }

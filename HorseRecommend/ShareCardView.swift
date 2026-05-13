@@ -83,7 +83,7 @@ struct ShareCardView: View {
 
     private var headerRow: some View {
         HStack(alignment: .center) {
-            Text("HORSE RECOMMEND")
+            Text("PAKAPICK")
                 .font(.system(size: 9, weight: .black, design: .rounded))
                 .foregroundColor(.white.opacity(0.28))
                 .tracking(2.5)

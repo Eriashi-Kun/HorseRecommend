@@ -4,12 +4,14 @@ struct RecommendationResultView: View {
     let type: PredictionType
     let race: Race
     @StateObject private var vm = RecommendationViewModel()
+    @Environment(InterstitialAdManager.self) private var adManager
     @Environment(\.dismiss) private var dismiss
     @State private var appeared = false
     @State private var slotNumber: Int = 0
     @State private var radarProgress: Double = 0
     @State private var shareImage: UIImage? = nil
     @State private var showingShare = false
+    @State private var adShown = false
 
     var body: some View {
         ZStack {
@@ -25,7 +27,6 @@ struct RecommendationResultView: View {
                         radarCard(rec: rec)
                         traitBadges(rec: rec)
                         reasonCard(rec: rec)
-                        if vm.hasNext { nextButton }
                         Spacer(minLength: 40)
                     }
                     .padding(.horizontal, 20)
@@ -37,13 +38,17 @@ struct RecommendationResultView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingShare) {
-            if let img = shareImage {
-                ShareSheet(items: [img, "🐴 AIが選んだ一頭！ #HorseRecommend #競馬予想"])
+            if let img = shareImage, let rec = vm.current {
+                ShareSheet(items: [img, shareText(rec: rec)])
                     .presentationDetents([.medium, .large])
             }
         }
         .task {
             await vm.load(type: type, race: race)
+            if !adShown {
+                adShown = true
+                adManager.showIfNeeded(raceID: "\(race.day)-\(race.venue)-\(race.raceNumber)")
+            }
             withAnimation(.spring(response: 0.55, dampingFraction: 0.72).delay(0.08)) {
                 appeared = true
             }
@@ -75,6 +80,22 @@ struct RecommendationResultView: View {
             try? await Task.sleep(nanoseconds: delay * 1_000_000)
         }
         slotNumber = target
+    }
+
+    // MARK: - Share Text
+
+    private func shareText(rec: Recommendation) -> String {
+        let (rank, _) = rankInfo(score: rec.score)
+        let score = Int(rec.score)
+        let name = rec.horse.name
+        switch type {
+        case .safe:
+            return "🎯 本命確信！\(name)で堅く行くぜ！\nスコア\(score)/99  RANK \(rank)\n#Pakapick #競馬予想"
+        case .midRange:
+            return "⚡ 中穴狙い撃ち！\(name)が激走する！\nスコア\(score)/99  RANK \(rank)\n#Pakapick #競馬予想"
+        case .longShot:
+            return "🔥 爆穴炸裂！\(name)で万馬券を狙え！\nスコア\(score)/99  RANK \(rank)\n#Pakapick #競馬予想"
+        }
     }
 
     // MARK: - Rank
