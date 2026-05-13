@@ -57,8 +57,15 @@ _TYPE_LABELS = {
 
 
 def recommend(race: dict, pred_type: str, weights: dict = None) -> dict:
-    # weightsありの場合はキャッシュしない（ユーザーごとに異なる可能性）
-    if not weights or all(v == 50.0 for k, v in weights.items() if k in ('jockey', 'history', 'popularity')):
+    # 全パラメータがデフォルト値の場合のみキャッシュを使用
+    is_default = (not weights or (
+        weights.get('jockey', 50) == 50.0 and
+        weights.get('history', 50) == 50.0 and
+        weights.get('popularity', 50) == 50.0 and
+        weights.get('cuteness', 0) == 0.0 and
+        weights.get('intuition', 0) == 0.0
+    ))
+    if is_default:
         cache_key = (race["day"], race["venue"], race["race_number"], pred_type)
         if cache_key in _cache:
             logger.info(f"Recommendation cache hit: {cache_key}")
