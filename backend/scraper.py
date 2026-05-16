@@ -164,15 +164,11 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
         return []
 
     horses = []
+    horse_num = 0
     for row in table.find_all('tr'):
-        # 馬番: tr id="tr_N" から取得 (Umaban セルは空のため)
+        # tr_N id を持つ行のみ馬行として扱う（ヘッダー行を除外）
         row_id = row.get('id', '')
-        m_id = re.match(r'tr_(\d+)', row_id)
-        if not m_id:
-            continue
-        try:
-            horse_num = int(m_id.group(1))
-        except ValueError:
+        if not re.match(r'tr_\d+', row_id):
             continue
 
         # 馬名: .HorseInfo セル
@@ -182,6 +178,9 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
         name = name_cell.get_text(strip=True)
         if not name:
             continue
+
+        # 馬番: tr_N のN値は馬番に対応しないため、テーブル行順で1から採番
+        horse_num += 1
 
         # オッズ: .Txt_R.Popular セル（レース前は数値、過去は "---.-"）
         odds = 99.9
