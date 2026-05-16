@@ -16,7 +16,7 @@ client = Anthropic()  # reads ANTHROPIC_API_KEY from environment
 # Server-side cache keyed by (day, venue, race_number, type) to minimise API costs
 _cache: dict[tuple, dict] = {}
 _cache_time: dict[tuple, float] = {}
-RECOMMEND_CACHE_TTL = 1200  # 20分でキャッシュ無効化（オッズ変動に追従）
+RECOMMEND_CACHE_TTL = 600  # 10分でキャッシュ無効化（オッズ変動に追従）
 
 # 馬ごとの過去成績キャッシュ（horse_id → list[dict]）
 _horse_results_cache: dict[str, list] = {}
