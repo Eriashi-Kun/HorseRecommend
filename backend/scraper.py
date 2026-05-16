@@ -70,7 +70,7 @@ def _fetch_yoso_odds(race_id: str) -> dict:
         resp = requests.get(url, headers=HEADERS, timeout=10)
         data = resp.json()
         odds_raw = data.get('data', {}).get('odds', {}).get('1', {})
-        return {k: float(v[0]) for k, v in odds_raw.items() if v and v[0] and v[0] != '---.-'}
+        return {str(int(k)): float(v[0]) for k, v in odds_raw.items() if v and v[0] and v[0] != '---.-'}
     except Exception:
         return {}
 
