@@ -2,10 +2,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from scraper import fetch_races_for_upcoming
+from scraper import fetch_races_for_upcoming, _fetch_yoso_odds
 from recommender import recommend
-from datetime import datetime
+from datetime import datetime, date
 import asyncio
+import threading
+import time
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -13,15 +15,43 @@ logger = logging.getLogger(__name__)
 
 _cache: dict = {"races": None, "updated_at": None}
 CACHE_TTL_SECONDS = 1800
+ODDS_REFRESH_INTERVAL = 60
 
 
 def _refresh_cache_sync():
     try:
-        _cache["races"] = fetch_races_for_upcoming()
+        races = fetch_races_for_upcoming()
+        _cache["races"] = races
         _cache["updated_at"] = datetime.now()
-        logger.info(f"Cache loaded: {len(_cache['races'])} races")
+        logger.info(f"Cache loaded: {len(races)} races")
     except Exception as e:
         logger.error(f"Cache refresh failed: {e}")
+
+
+def _refresh_odds_for_today():
+    """今日のレースのオッズだけを1分ごとに更新するバックグラウンドスレッド"""
+    while True:
+        time.sleep(ODDS_REFRESH_INTERVAL)
+        if not _cache["races"]:
+            continue
+        today = date.today().strftime("%Y%m%d")
+        today_races = [r for r in _cache["races"] if r.get("day") == today]
+        if not today_races:
+            continue
+        updated = 0
+        for race in today_races:
+            race_id = race.get("race_id")
+            if not race_id:
+                continue
+            odds_map = _fetch_yoso_odds(race_id)
+            if odds_map:
+                for horse in race.get("horses", []):
+                    key = str(horse["number"])
+                    if key in odds_map:
+                        horse["odds"] = odds_map[key]
+                updated += 1
+        if updated:
+            logger.info(f"Odds refreshed for {updated} races")
 
 
 def _is_cache_fresh() -> bool:
@@ -35,6 +65,7 @@ def _is_cache_fresh() -> bool:
 async def lifespan(app: FastAPI):
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, _refresh_cache_sync)
+    threading.Thread(target=_refresh_odds_for_today, daemon=True).start()
     yield
 
 
@@ -50,9 +81,11 @@ app.add_middleware(
 
 @app.get("/races")
 def get_races():
-    if not _is_cache_fresh():
-        logger.info("Cache miss — fetching from netkeiba")
-        _refresh_cache_sync()
+    if _cache["races"] is not None:
+        if not _is_cache_fresh():
+            threading.Thread(target=_refresh_cache_sync, daemon=True).start()
+        return _cache["races"]
+    _refresh_cache_sync()
     return _cache["races"] or []
 
 

@@ -63,6 +63,18 @@ def fetch_race_ids_for_date(date_str: str) -> list[str]:
     return ids
 
 
+def _fetch_yoso_odds(race_id: str) -> dict:
+    """予想オッズAPIから馬番→オッズのマップを取得する"""
+    try:
+        url = f'https://race.netkeiba.com/api/api_get_jra_odds.html?race_id={race_id}&type=1&action=init'
+        resp = requests.get(url, headers=HEADERS, timeout=10)
+        data = resp.json()
+        odds_raw = data.get('data', {}).get('odds', {}).get('1', {})
+        return {k: float(v[0]) for k, v in odds_raw.items() if v and v[0] and v[0] != '---.-'}
+    except Exception:
+        return {}
+
+
 def fetch_race_detail(race_id: str, day: str) -> dict | None:
     soup = _get(f'https://race.netkeiba.com/race/shutuba.html?race_id={race_id}')
     if not soup:
@@ -124,7 +136,16 @@ def fetch_race_detail(race_id: str, day: str) -> dict | None:
         logger.warning(f"Skipping {race_id}: missing name or horses")
         return None
 
+    # 予想オッズをAPIから取得して上書き
+    odds_map = _fetch_yoso_odds(race_id)
+    if odds_map:
+        for h in horses:
+            key = str(h['number'])
+            if key in odds_map:
+                h['odds'] = odds_map[key]
+
     return {
+        'race_id': race_id,
         'day': day,
         'venue': venue,
         'race_number': race_number,
@@ -144,16 +165,13 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
 
     horses = []
     for row in table.find_all('tr'):
-        # 馬番: class名に "Umaban" を含むセル
-        num_cell = next(
-            (td for td in row.find_all('td')
-             if any('Umaban' in c for c in td.get('class', []))),
-            None
-        )
-        if not num_cell:
+        # 馬番: tr id="tr_N" から取得 (Umaban セルは空のため)
+        row_id = row.get('id', '')
+        m_id = re.match(r'tr_(\d+)', row_id)
+        if not m_id:
             continue
         try:
-            horse_num = int(num_cell.get_text(strip=True))
+            horse_num = int(m_id.group(1))
         except ValueError:
             continue
 
@@ -274,20 +292,20 @@ def fetch_horse_past_results(horse_id: str, n: int = 3) -> list[dict]:
         if not tds:
             continue
 
-        def _get(name: str, default: str = '') -> str:
+        def _cell(name: str, default: str = '') -> str:
             idx = col.get(name, -1)
             return tds[idx].get_text(strip=True) if 0 <= idx < len(tds) else default
 
-        finish = _get('着順')
+        finish = _cell('着順')
         if not finish:
             continue
         results.append({
             'finish': finish,
-            'race_name': _get('レース名'),
-            'distance': _get('距離'),
-            'condition': _get('馬場'),
-            'popularity': _get('人気'),
-            'venue': _get('開催'),
+            'race_name': _cell('レース名'),
+            'distance': _cell('距離'),
+            'condition': _cell('馬場'),
+            'popularity': _cell('人気'),
+            'venue': _cell('開催'),
         })
 
     return results
