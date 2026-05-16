@@ -11,6 +11,7 @@ struct PredictionTypeSelectView: View {
     @State private var showRaceSelection = false
     @State private var showCustomize = false
     @State private var raceManuallySelected = false
+    @State private var isNavigating = false
     @Environment(UserWeightsManager.self) private var weights
 
     private let network = NetworkRaceRepository()
@@ -215,13 +216,27 @@ struct PredictionTypeSelectView: View {
         }
     }
 
+    private func refreshAndNavigate() async {
+        isNavigating = true
+        defer { isNavigating = false }
+        if let races = try? await network.fetchRaces() {
+            allRaces = races
+            if let updated = races.first(where: {
+                $0.day == race.day && $0.venue == race.venue && $0.raceNumber == race.raceNumber
+            }) {
+                race = updated
+            }
+        }
+        navigate = true
+    }
+
     // MARK: - Go Button
 
     private var goButton: some View {
         let past = race.isPast
-        let disabled = past || !racesLoaded
-        return Button { if !disabled { navigate = true } } label: {
-            Text(!racesLoaded ? "取得中..." : past ? "レース終了" : "予想スタート！")
+        let disabled = past || !racesLoaded || isNavigating
+        return Button { if !disabled { Task { await refreshAndNavigate() } } } label: {
+            Text(!racesLoaded ? "取得中..." : isNavigating ? "更新中..." : past ? "レース終了" : "予想スタート！")
                 .font(.system(size: 20, weight: .black, design: .rounded))
                 .foregroundColor(disabled ? .white.opacity(0.35) : SplatTheme.bg)
                 .frame(maxWidth: .infinity)
@@ -232,6 +247,7 @@ struct PredictionTypeSelectView: View {
         .padding(.bottom, 48)
         .animation(.easeInOut(duration: 0.3), value: selected)
         .animation(.easeInOut(duration: 0.2), value: past)
+        .animation(.easeInOut(duration: 0.2), value: isNavigating)
     }
 }
 
