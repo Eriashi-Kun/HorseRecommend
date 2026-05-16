@@ -4,6 +4,7 @@ import json
 import logging
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 from anthropic import Anthropic
 from scraper import fetch_horse_past_results, fetch_jockey_stats
@@ -14,6 +15,8 @@ client = Anthropic()  # reads ANTHROPIC_API_KEY from environment
 
 # Server-side cache keyed by (day, venue, race_number, type) to minimise API costs
 _cache: dict[tuple, dict] = {}
+_cache_time: dict[tuple, float] = {}
+RECOMMEND_CACHE_TTL = 1200  # 20分でキャッシュ無効化（オッズ変動に追従）
 
 # 馬ごとの過去成績キャッシュ（horse_id → list[dict]）
 _horse_results_cache: dict[str, list] = {}
@@ -23,37 +26,68 @@ _jockey_stats_cache: dict[str, dict] = {}
 
 
 def _get_past_results(horses: list[dict]) -> dict[str, list]:
-    """全馬の過去3走を取得（未取得分のみfetch、キャッシュ済みは再利用）"""
-    results: dict[str, list] = {}
-    for h in horses:
-        hid = h.get('horse_id', '')
-        if not hid:
-            continue
-        if hid not in _horse_results_cache:
-            _horse_results_cache[hid] = fetch_horse_past_results(hid, n=3)
-            time.sleep(0.3)
-        results[hid] = _horse_results_cache[hid]
-    return results
+    """全馬の過去3走を並列取得（キャッシュ済みは再利用）"""
+    uncached = [h for h in horses if h.get('horse_id') and h['horse_id'] not in _horse_results_cache]
+
+    def _fetch(h):
+        hid = h['horse_id']
+        _horse_results_cache[hid] = fetch_horse_past_results(hid, n=3)
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(_fetch, uncached))
+
+    return {h['horse_id']: _horse_results_cache[h['horse_id']]
+            for h in horses if h.get('horse_id') and h['horse_id'] in _horse_results_cache}
 
 
 def _get_jockey_stats(horses: list[dict]) -> dict[str, dict]:
-    """全馬の騎手成績を取得（キャッシュ済みは再利用）"""
-    stats: dict[str, dict] = {}
-    for h in horses:
-        jid = h.get('jockey_id', '')
-        if not jid:
-            continue
-        if jid not in _jockey_stats_cache:
-            _jockey_stats_cache[jid] = fetch_jockey_stats(jid)
-            time.sleep(0.3)
-        stats[jid] = _jockey_stats_cache[jid]
-    return stats
+    """全馬の騎手成績を並列取得（キャッシュ済みは再利用）"""
+    uncached = [h for h in horses if h.get('jockey_id') and h['jockey_id'] not in _jockey_stats_cache]
+
+    def _fetch(h):
+        jid = h['jockey_id']
+        _jockey_stats_cache[jid] = fetch_jockey_stats(jid)
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        list(ex.map(_fetch, uncached))
+
+    return {h['jockey_id']: _jockey_stats_cache[h['jockey_id']]
+            for h in horses if h.get('jockey_id') and h['jockey_id'] in _jockey_stats_cache}
 
 _TYPE_LABELS = {
-    "safe":      ("固め",  "人気上位馬を堅実に狙う。オッズが低く安定感のある馬を最大3頭選んでください。"),
-    "midRange":  ("中穴",  "オッズ5〜20倍の中穴ゾーンから配当妙味のある馬を最大3頭選んでください。"),
-    "longShot":  ("爆穴",  "オッズ15倍以上の大穴馬を最大3頭選び、一発逆転シナリオを描いてください。"),
+    "safe":      ("固め",  "オッズ10倍以下の人気上位馬を堅実に狙う。安定感のある馬を最大3頭選んでください。"),
+    "midRange":  ("中穴",  "オッズ10〜50倍の中穴ゾーンから配当妙味のある馬を最大3頭選んでください。"),
+    "longShot":  ("爆穴",  "オッズ50倍以上の大穴馬を最大3頭選び、一発逆転シナリオを描いてください。"),
 }
+
+
+def prefetch_race_data(races: list[dict]) -> None:
+    """全レースの馬過去成績・騎手成績をバックグラウンドでプリフェッチする"""
+    all_horses = [h for race in races for h in race.get('horses', [])]
+    logger.info(f"Prefetching data for {len(all_horses)} horses across {len(races)} races")
+    _get_past_results(all_horses)
+    _get_jockey_stats(all_horses)
+    logger.info(f"Prefetch done: {len(_horse_results_cache)} horse results, {len(_jockey_stats_cache)} jockey stats cached")
+
+
+def _filter_horses_by_type(horses: list[dict], pred_type: str) -> list[dict]:
+    """予想タイプに応じてオッズでフィルタリング。対象馬が少なければ近い範囲にフォールバック"""
+    if pred_type == "safe":
+        filtered = [h for h in horses if h['odds'] <= 10.0]
+        if len(filtered) >= 2:
+            return filtered
+        return sorted(horses, key=lambda h: h['odds'])[:6]
+    elif pred_type == "midRange":
+        filtered = [h for h in horses if 10.0 < h['odds'] <= 50.0]
+        if len(filtered) >= 2:
+            return filtered
+        return sorted(horses, key=lambda h: abs(h['odds'] - 25))[:6]
+    elif pred_type == "longShot":
+        filtered = [h for h in horses if h['odds'] > 50.0]
+        if len(filtered) >= 2:
+            return filtered
+        return sorted(horses, key=lambda h: -h['odds'])[:6]
+    return horses
 
 
 def recommend(race: dict, pred_type: str, weights: dict = None) -> dict:
@@ -67,11 +101,13 @@ def recommend(race: dict, pred_type: str, weights: dict = None) -> dict:
     ))
     if is_default:
         cache_key = (race["day"], race["venue"], race["race_number"], pred_type)
-        if cache_key in _cache:
+        cached_at = _cache_time.get(cache_key, 0)
+        if cache_key in _cache and time.time() - cached_at < RECOMMEND_CACHE_TTL:
             logger.info(f"Recommendation cache hit: {cache_key}")
             return _cache[cache_key]
         result = _call_claude(race, pred_type, weights or {})
         _cache[cache_key] = result
+        _cache_time[cache_key] = time.time()
         return result
 
     return _call_claude(race, pred_type, weights)
@@ -128,8 +164,9 @@ def _weight_instruction(weights: dict) -> str:
 def _call_claude(race: dict, pred_type: str, weights: dict) -> dict:
     label, instruction = _TYPE_LABELS.get(pred_type, ("予想", "おすすめ馬を選んでください。"))
 
-    past_map = _get_past_results(race["horses"])
-    jockey_map = _get_jockey_stats(race["horses"])
+    target_horses = _filter_horses_by_type(race["horses"], pred_type)
+    past_map = _get_past_results(target_horses)
+    jockey_map = _get_jockey_stats(target_horses)
 
     def _horse_line(h: dict) -> str:
         parts = [f"  {h['number']}番"]
@@ -161,7 +198,7 @@ def _call_claude(race: dict, pred_type: str, weights: dict) -> dict:
 
     horses_lines = "\n".join(
         _horse_line(h)
-        for h in sorted(race["horses"], key=lambda x: x["number"])
+        for h in sorted(target_horses, key=lambda x: x["number"])
     )
 
     weight_section = _weight_instruction(weights)
@@ -178,7 +215,7 @@ def _call_claude(race: dict, pred_type: str, weights: dict) -> dict:
 【予想スタイル：{label}】
 {instruction}{weight_section}
 
-各推奨馬について、以下の観点を含む具体的な予想理由を3〜4文で書いてください：
+各推奨馬について、以下の観点を含む具体的な予想理由を4〜5文で書いてください：
 - この馬が今日の条件（距離・馬場・コース形態）に向いている理由
 - オッズと人気面での信頼度や妙味の評価
 - このレースでの具体的な期待シナリオ
