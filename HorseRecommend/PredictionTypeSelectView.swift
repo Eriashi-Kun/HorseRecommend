@@ -1,13 +1,16 @@
 import SwiftUI
 
+
 struct PredictionTypeSelectView: View {
     @State private var selected: PredictionType = .safe
     @State private var race: Race = MockRaceRepository().fetchCurrentRace()
     @State private var allRaces: [Race] = sampleRaces
     @State private var isLoadingRaces = false
+    @State private var racesLoaded = false
     @State private var navigate = false
     @State private var showRaceSelection = false
     @State private var showCustomize = false
+    @State private var raceManuallySelected = false
     @Environment(UserWeightsManager.self) private var weights
 
     private let network = NetworkRaceRepository()
@@ -31,7 +34,10 @@ struct PredictionTypeSelectView: View {
             .task { await loadRaces() }
             .sheet(isPresented: $showRaceSelection) {
                 NavigationStack {
-                    RaceSelectionView(races: allRaces, onSelect: { r in race = r })
+                    RaceSelectionView(races: allRaces, onSelect: { r in
+                        race = r
+                        raceManuallySelected = true
+                    })
                 }
                 .preferredColorScheme(.dark)
             }
@@ -115,41 +121,51 @@ struct PredictionTypeSelectView: View {
     // MARK: - Race Bar (tap to change race)
 
     private var raceBar: some View {
-        Button(action: { showRaceSelection = true }) {
+        Button(action: { if racesLoaded { showRaceSelection = true } }) {
             HStack(spacing: 10) {
-                if race.showsGradeBadge {
-                    Text(race.grade.displayText)
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(SplatTheme.bg)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(race.grade.color)
-                        .cornerRadius(5)
-                }
-
-                Text(race.venue)
-                    .font(.system(size: 13, weight: .black))
-                    .foregroundColor(.white.opacity(0.55))
-
-                Text(race.name)
-                    .font(.system(size: 14, weight: .black))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-
-                Spacer()
-
-                Text(race.time)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(selected.color)
-
-                if isLoadingRaces {
+                if !racesLoaded && isLoadingRaces {
                     ProgressView()
                         .tint(selected.color)
-                        .scaleEffect(0.7)
+                        .scaleEffect(0.8)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("レースデータを取得中...")
+                            .font(.system(size: 14, weight: .black))
+                            .foregroundColor(.white.opacity(0.7))
+                        Text("初回は約1分かかります")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.white.opacity(0.38))
+                    }
+                    Spacer()
                 } else {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .black))
-                        .foregroundColor(.white.opacity(0.35))
+                    if race.showsGradeBadge {
+                        Text(race.grade.displayText)
+                            .font(.system(size: 11, weight: .black))
+                            .foregroundColor(SplatTheme.bg)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(race.grade.color)
+                            .cornerRadius(5)
+                    }
+                    Text(race.venue)
+                        .font(.system(size: 13, weight: .black))
+                        .foregroundColor(.white.opacity(0.55))
+                    Text(race.name)
+                        .font(.system(size: 14, weight: .black))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Spacer()
+                    Text(race.time)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(selected.color)
+                    if isLoadingRaces {
+                        ProgressView()
+                            .tint(selected.color)
+                            .scaleEffect(0.7)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .black))
+                            .foregroundColor(.white.opacity(0.35))
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -189,9 +205,12 @@ struct PredictionTypeSelectView: View {
         do {
             let races = try await network.fetchRaces()
             allRaces = races
-            race = network.currentRace(from: races)
+            if !raceManuallySelected {
+                race = network.currentRace(from: races)
+            }
+            racesLoaded = true
         } catch {
-            // ネットワーク失敗時はモックデータのまま継続
+            racesLoaded = true  // エラーでもモックデータで続行できるようにする
             print("Race load failed: \(error.localizedDescription)")
         }
     }
@@ -200,14 +219,15 @@ struct PredictionTypeSelectView: View {
 
     private var goButton: some View {
         let past = race.isPast
-        return Button { if !past { navigate = true } } label: {
-            Text(past ? "レース終了" : "予想スタート！")
+        let disabled = past || !racesLoaded
+        return Button { if !disabled { navigate = true } } label: {
+            Text(!racesLoaded ? "取得中..." : past ? "レース終了" : "予想スタート！")
                 .font(.system(size: 20, weight: .black, design: .rounded))
-                .foregroundColor(past ? .white.opacity(0.35) : SplatTheme.bg)
+                .foregroundColor(disabled ? .white.opacity(0.35) : SplatTheme.bg)
                 .frame(maxWidth: .infinity)
         }
-        .buttonStyle(SplatButtonStyle(color: past ? Color.gray.opacity(0.3) : selected.color, height: 64))
-        .disabled(past)
+        .buttonStyle(SplatButtonStyle(color: disabled ? Color.gray.opacity(0.3) : selected.color, height: 64))
+        .disabled(disabled)
         .padding(.horizontal, 20)
         .padding(.bottom, 48)
         .animation(.easeInOut(duration: 0.3), value: selected)
@@ -298,7 +318,7 @@ struct SplatTypeCard: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 18)
         }
-        .scaleEffect(isSelected ? 1.03 : 1.0)
+        .scaleEffect(1.0)
         .onChange(of: isSelected) { _, newValue in
             guard newValue else { return }
             shimmerX = -0.3
