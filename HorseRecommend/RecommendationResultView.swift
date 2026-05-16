@@ -48,7 +48,7 @@ struct RecommendationResultView: View {
             await vm.load(type: type, race: race, weights: weights)
             if !adShown {
                 adShown = true
-                adManager.showIfNeeded(raceID: "\(race.day)-\(race.venue)-\(race.raceNumber)")
+                adManager.showIfNeeded()
             }
             withAnimation(.spring(response: 0.55, dampingFraction: 0.72).delay(0.08)) {
                 appeared = true

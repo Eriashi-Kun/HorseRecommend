@@ -8,8 +8,8 @@ class InterstitialAdManager {
     private var interstitial: InterstitialAd?
 
     private let adUnitID = "ca-app-pub-8763709237464698/8850630257"
-    private let freeLimit = 2
-    private let racesKey = "adRacesUsedToday"
+    private let freeLimit = 3
+    private let countKey = "adPredictionsToday"
     private let dateKey  = "adLastDate"
 
     init() {
@@ -22,20 +22,19 @@ class InterstitialAdManager {
         return f.string(from: Date())
     }
 
-    private var racesUsedToday: Set<String> {
+    private var predictionsToday: Int {
         get {
             let saved = UserDefaults.standard.string(forKey: dateKey) ?? ""
             if saved != todayString {
                 UserDefaults.standard.set(todayString, forKey: dateKey)
-                UserDefaults.standard.set([String](), forKey: racesKey)
-                return []
+                UserDefaults.standard.set(0, forKey: countKey)
+                return 0
             }
-            let arr = UserDefaults.standard.stringArray(forKey: racesKey) ?? []
-            return Set(arr)
+            return UserDefaults.standard.integer(forKey: countKey)
         }
         set {
             UserDefaults.standard.set(todayString, forKey: dateKey)
-            UserDefaults.standard.set(Array(newValue), forKey: racesKey)
+            UserDefaults.standard.set(newValue, forKey: countKey)
         }
     }
 
@@ -50,12 +49,10 @@ class InterstitialAdManager {
         }
     }
 
-    func showIfNeeded(raceID: String) {
-        var races = racesUsedToday
-        races.insert(raceID)
-        racesUsedToday = races
+    func showIfNeeded() {
+        predictionsToday += 1
 
-        guard races.count > freeLimit else { return }
+        guard predictionsToday > freeLimit else { return }
         guard let ad = interstitial,
               let root = UIApplication.shared.connectedScenes
                 .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
