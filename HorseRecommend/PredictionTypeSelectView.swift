@@ -173,6 +173,7 @@ struct PredictionTypeSelectView: View {
                         .background(.white.opacity(0.12))
                         .clipShape(Capsule())
                     }
+                    .buttonStyle(ScalePressStyle())
                     customizeButton
                 }
             }
@@ -262,19 +263,13 @@ struct PredictionTypeSelectView: View {
                         .shadow(color: SplatTheme.magenta, radius: 3)
                 }
             }
-            .foregroundColor(weights.isCustomized ? SplatTheme.magenta : .white.opacity(0.5))
+            .foregroundColor(weights.isCustomized ? SplatTheme.magenta : .white.opacity(0.8))
             .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(weights.isCustomized ? SplatTheme.magenta.opacity(0.15) : SplatTheme.card)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(
-                                weights.isCustomized ? SplatTheme.magenta.opacity(0.5) : Color.white.opacity(0.12),
-                                lineWidth: 1
-                            )
-                    )
+            .padding(.vertical, 5)
+            .background(weights.isCustomized ? SplatTheme.magenta.opacity(0.18) : .white.opacity(0.12))
+            .clipShape(Capsule())
+            .overlay(
+                Capsule().stroke(weights.isCustomized ? SplatTheme.magenta.opacity(0.5) : .clear, lineWidth: 1)
             )
         }
         .buttonStyle(ScalePressStyle())
