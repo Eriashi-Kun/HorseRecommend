@@ -18,6 +18,10 @@ struct PredictionTypeSelectView: View {
     @State private var showHistory = false
     @State private var showMyPage = false
     @State private var showAdPrompt = false
+    @State private var xpGainAmount: Int? = nil
+    @State private var snapshotLevel: Int = 0
+    @State private var snapshotXP: Int = 0
+    @State private var showTransitionLoader = false
     @State private var showAdFailedAlert = false
     @State private var pendingVM: RecommendationViewModel = RecommendationViewModel()
     @Environment(UserWeightsManager.self) private var weights
@@ -37,6 +41,20 @@ struct PredictionTypeSelectView: View {
                     typeCards
                     Spacer(minLength: 24)
                     goButton
+                }
+
+                if showTransitionLoader {
+                    ZStack {
+                        SplatTheme.bg.ignoresSafeArea()
+                        InkBlobBackground(primaryColor: selected.color)
+                        VStack(spacing: 16) {
+                            ProgressView().tint(selected.color).scaleEffect(1.4)
+                            Text("AI予想を生成中...")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+                    .ignoresSafeArea()
                 }
             }
             .animation(.easeInOut(duration: 0.5), value: selected)
@@ -62,12 +80,38 @@ struct PredictionTypeSelectView: View {
             .navigationDestination(isPresented: $navigate) {
                 RecommendationResultView(type: selected, race: race, vm: pendingVM)
             }
+            .onChange(of: navigate) { _, isNavigating in
+                guard !isNavigating else { return }
+                showTransitionLoader = false
+                let gained = stats.totalXP - snapshotXP
+                guard gained > 0 else { return }
+
+                // +XP 表示
+                xpGainAmount = gained
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+                    withAnimation { xpGainAmount = nil }
+                }
+
+                // サウンドフィードバック
+                let oldTitle = PlayerStats.title(for: snapshotLevel)
+                let newTitle = PlayerStats.title(for: stats.level)
+                if stats.level > snapshotLevel && newTitle != oldTitle {
+                    SoundManager.playTitleUp()
+                } else if stats.level > snapshotLevel {
+                    SoundManager.playLevelUp()
+                } else {
+                    SoundManager.playXPGain()
+                }
+            }
             .alert("本日の無料予想を使い切りました", isPresented: $showAdPrompt) {
                 Button("広告を視聴して予想する") {
                     adManager.showAd(
                         onRewarded: {
+                            showTransitionLoader = true
                             adManager.incrementCount()
-                            navigate = true
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                navigate = true
+                            }
                         },
                         onFailed: { showAdFailedAlert = true }
                     )
@@ -181,6 +225,20 @@ struct PredictionTypeSelectView: View {
                         }
                     }
                     .frame(width: 80, height: 4)
+                    .overlay(alignment: .trailing) {
+                        if let gained = xpGainAmount {
+                            Text("+\(gained) XP")
+                                .font(.system(size: 10, weight: .black))
+                                .foregroundColor(selected.color)
+                                .shadow(color: selected.color.opacity(0.8), radius: 4)
+                                .offset(y: -14)
+                                .transition(.asymmetric(
+                                    insertion: .offset(y: 4).combined(with: .opacity),
+                                    removal: .offset(y: -8).combined(with: .opacity)
+                                ))
+                        }
+                    }
+                    .animation(.easeOut(duration: 0.6), value: xpGainAmount)
                 }
             }
             .padding(.top, 8)
@@ -333,6 +391,10 @@ struct PredictionTypeSelectView: View {
                 race = updated
             }
         }
+        // 遷移前のXP・レベルを記録（戻り時の差分検出用）
+        snapshotLevel = stats.level
+        snapshotXP = stats.totalXP
+
         // VMを作成してAI先読み開始（広告視聴中・遷移アニメーション中に並行実行）
         let vm = RecommendationViewModel()
         pendingVM = vm
