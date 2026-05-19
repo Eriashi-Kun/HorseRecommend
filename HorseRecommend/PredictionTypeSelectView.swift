@@ -1,6 +1,10 @@
 import SwiftUI
+import SwiftData
 
 struct PredictionTypeSelectView: View {
+    @Query private var records: [PredictionRecord]
+    private var stats: PlayerStats { PlayerStats(records: records) }
+
     @State private var selected: PredictionType = .safe
     @State private var race: Race = MockRaceRepository().fetchCurrentRace()
     @State private var allRaces: [Race] = sampleRaces
@@ -12,6 +16,7 @@ struct PredictionTypeSelectView: View {
     @State private var raceManuallySelected = false
     @State private var isNavigating = false
     @State private var showHistory = false
+    @State private var showMyPage = false
     @State private var showAdPrompt = false
     @State private var showAdFailedAlert = false
     @State private var pendingVM: RecommendationViewModel = RecommendationViewModel()
@@ -51,6 +56,9 @@ struct PredictionTypeSelectView: View {
             .sheet(isPresented: $showHistory) {
                 HistoryView()
             }
+            .sheet(isPresented: $showMyPage) {
+                MyPageView()
+            }
             .navigationDestination(isPresented: $navigate) {
                 RecommendationResultView(type: selected, race: race, vm: pendingVM)
             }
@@ -80,6 +88,7 @@ struct PredictionTypeSelectView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 0) {
+            // 左側: PAKAPICK + ボタン群
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: -10) {
                     Text("PAKA")
@@ -92,6 +101,19 @@ struct PredictionTypeSelectView: View {
                         .padding(.leading, 4)
                 }
                 HStack(spacing: 8) {
+                    if stats.streak >= 2 {
+                        HStack(spacing: 3) {
+                            Text("🔥")
+                                .font(.system(size: 11))
+                            Text("\(stats.streak)連続")
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundColor(.orange)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(.orange.opacity(0.15))
+                        .clipShape(Capsule())
+                    }
                     Button {
                         showHistory = true
                     } label: {
@@ -113,15 +135,55 @@ struct PredictionTypeSelectView: View {
 
             Spacer()
 
-            Image("HorseIcon")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 52, height: 52)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-                .colorMultiply(selected.color)
-                .brightness(0.15)
-                .shadow(color: selected.color.opacity(0.7), radius: 12)
-                .padding(.top, 8)
+            // 右側: マイページ + Lv + XPバー
+            VStack(alignment: .trailing, spacing: 8) {
+                Button(action: { showMyPage = true }) {
+                    VStack(spacing: 5) {
+                        Image("HorseIcon")
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 40, height: 40)
+                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                            .colorMultiply(selected.color)
+                            .brightness(0.15)
+                            .shadow(color: selected.color.opacity(0.6), radius: 8)
+                        Text("マイページ")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundColor(selected.color)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 8)
+                    .background(selected.color.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(selected.color.opacity(0.45), lineWidth: 1.5)
+                    )
+                }
+                .buttonStyle(ScalePressStyle())
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    HStack(spacing: 5) {
+                        Text("Lv.\(stats.level)")
+                            .font(.system(size: 12, weight: .black, design: .rounded))
+                            .foregroundColor(selected.color)
+                        Text(stats.title)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white.opacity(0.45))
+                    }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.white.opacity(0.1)).frame(height: 4)
+                            Capsule()
+                                .fill(selected.color)
+                                .frame(width: max(4, geo.size.width * stats.xpProgress), height: 4)
+                                .shadow(color: selected.color.opacity(0.6), radius: 3)
+                        }
+                    }
+                    .frame(width: 80, height: 4)
+                }
+            }
+            .padding(.top, 8)
         }
         .padding(.horizontal, 24)
         .padding(.top, 60)
