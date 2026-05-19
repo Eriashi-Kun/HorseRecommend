@@ -146,6 +146,22 @@ struct ParameterCustomizeView: View {
                 )
                 divider
                 weightRow(
+                    emoji: "😎",
+                    title: "かっこよさ重視度",
+                    hint: "強そうな名前・風格のある馬を優遇",
+                    value: weights.coolness,
+                    color: SplatTheme.cyan
+                )
+                divider
+                weightRow(
+                    emoji: "💪",
+                    title: "デカさ重視度",
+                    hint: "馬体重の重い大型馬を優遇",
+                    value: weights.bigness,
+                    color: SplatTheme.yellow
+                )
+                divider
+                weightRow(
                     emoji: "🎲",
                     title: "直感重視度",
                     hint: "運とランダム要素でサプライズ",

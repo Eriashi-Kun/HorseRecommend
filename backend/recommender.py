@@ -97,6 +97,8 @@ def recommend(race: dict, pred_type: str, weights: dict = None) -> dict:
         weights.get('history', 50) == 50.0 and
         weights.get('popularity', 50) == 50.0 and
         weights.get('cuteness', 0) == 0.0 and
+        weights.get('coolness', 0) == 0.0 and
+        weights.get('bigness', 0) == 0.0 and
         weights.get('intuition', 0) == 0.0
     ))
     if is_default:
@@ -149,6 +151,18 @@ def _weight_instruction(weights: dict) -> str:
         lines.append(f'・馬名の響き・可愛さ・ユニークさを重視してください（重視度{int(cuteness_w)}/100）')
     elif cuteness_w >= 30:
         lines.append(f'・馬名の印象も少し考慮してください（重視度{int(cuteness_w)}/100）')
+
+    coolness_w = weights.get('coolness', 0)
+    if coolness_w >= 60:
+        lines.append(f'・名前の強さ・風格・かっこよさを重視してください。力強い響きの名前の馬を優遇してください（重視度{int(coolness_w)}/100）')
+    elif coolness_w >= 30:
+        lines.append(f'・名前のかっこよさも少し考慮してください（重視度{int(coolness_w)}/100）')
+
+    bigness_w = weights.get('bigness', 0)
+    if bigness_w >= 60:
+        lines.append(f'・馬体重の重い大型馬を優遇してください。出走馬の中でも体重上位の馬を特に考慮してください（重視度{int(bigness_w)}/100）')
+    elif bigness_w >= 30:
+        lines.append(f'・馬体重もやや考慮してください（重視度{int(bigness_w)}/100）')
 
     intuition_w = weights.get('intuition', 0)
     if intuition_w >= 60:
