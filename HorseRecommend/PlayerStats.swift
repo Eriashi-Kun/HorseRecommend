@@ -10,13 +10,16 @@ struct PlayerStats {
     // 現レベルから次レベルに上がるのに必要なXP（ポケモン式）
     static func xpToNextLevel(from level: Int) -> Int {
         switch level {
-        case 1...9:   return 25
-        case 10...19: return 65
-        case 20...29: return 210
-        case 30...49: return 350
-        case 50...59: return 500
-        case 60...79: return 750
-        case 80...99: return 1000
+        case 1...10:  return 25
+        case 11...20: return 65
+        case 21...30: return 150
+        case 31...40: return 280
+        case 41...50: return 420
+        case 51...60: return 600
+        case 61...70: return 800
+        case 71...80: return 1000
+        case 81...90: return 1200
+        case 91...99: return 1500
         default:      return 0  // Lv.100 が上限
         }
     }
