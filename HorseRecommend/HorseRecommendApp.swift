@@ -6,15 +6,17 @@
 //
 
 import SwiftUI
+import SwiftData
 import GoogleMobileAds
 
 @main
 struct HorseRecommendApp: App {
-    @State private var adManager = InterstitialAdManager()
+    @State private var adManager = RewardedAdManager()
     @State private var weights = UserWeightsManager()
 
     init() {
         MobileAds.shared.start()
+        NotificationManager.requestPermission()
     }
 
     var body: some Scene {
@@ -23,5 +25,6 @@ struct HorseRecommendApp: App {
                 .environment(adManager)
                 .environment(weights)
         }
+        .modelContainer(for: PredictionRecord.self)
     }
 }

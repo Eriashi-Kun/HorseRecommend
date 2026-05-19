@@ -352,6 +352,56 @@ def fetch_jockey_stats(jockey_id: str) -> dict:
     return {}
 
 
+_result_cache: dict[str, dict] = {}
+
+
+def fetch_race_result(race_id: str) -> dict:
+    """レース結果ページから着順を取得する（結果確定後は永続キャッシュ）"""
+    if race_id in _result_cache:
+        return _result_cache[race_id]
+
+    soup = _get(f'https://race.netkeiba.com/race/result.html?race_id={race_id}')
+    if not soup:
+        return {'results': []}
+
+    table = None
+    for sel in ['.Result_Table', '.RaceTable', 'table.race_table_01']:
+        table = soup.select_one(sel)
+        if table:
+            break
+    if not table:
+        return {'results': []}
+
+    # ヘッダー行からカラム名→インデックスのマップを作成
+    header_row = table.find('tr')
+    if not header_row:
+        return {'results': []}
+    headers = [th.get_text(strip=True) for th in header_row.find_all(['th', 'td'])]
+    col = {h: i for i, h in enumerate(headers)}
+
+    finish_idx = col.get('着順', 0)
+    number_idx = col.get('馬番', col.get('馬 番', 2))
+
+    results = []
+    for row in table.find_all('tr')[1:]:
+        tds = row.find_all('td')
+        if not tds:
+            continue
+        try:
+            finish_text = tds[finish_idx].get_text(strip=True) if finish_idx < len(tds) else ''
+            number_text = tds[number_idx].get_text(strip=True) if number_idx < len(tds) else ''
+            finish = int(finish_text)
+            number = int(number_text)
+            results.append({'number': number, 'finish': finish})
+        except (ValueError, IndexError):
+            continue
+
+    result = {'results': results}
+    if results:
+        _result_cache[race_id] = result
+    return result
+
+
 def fetch_races_for_upcoming() -> list[dict]:
     """今日から14日間で実際にレースが開催される日のレースをすべて取得する"""
     all_races = []

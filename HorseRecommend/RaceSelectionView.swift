@@ -45,6 +45,28 @@ struct RaceSelectionView: View {
             SplatTheme.bg.ignoresSafeArea()
 
             VStack(spacing: 0) {
+                // Title bar
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .black))
+                            .foregroundColor(.white.opacity(0.55))
+                            .frame(width: 36, height: 36)
+                            .background(SplatTheme.card)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(ScalePressStyle())
+                    Spacer()
+                    Text("レース選択")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white)
+                    Spacer()
+                    Color.clear.frame(width: 36, height: 36)
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(SplatTheme.bg)
+
                 daySelector
                 venueSelector
                 ScrollView(showsIndicators: false) {
@@ -65,23 +87,6 @@ struct RaceSelectionView: View {
                     .padding(.horizontal, 16)
                     .padding(.vertical, 16)
                 }
-            }
-        }
-        .navigationTitle("レース選択")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(SplatTheme.surface, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .black))
-                        .foregroundColor(.white.opacity(0.55))
-                        .frame(width: 36, height: 36)
-                        .background(SplatTheme.card)
-                        .clipShape(Circle())
-                }
-                .buttonStyle(ScalePressStyle())
             }
         }
         .onAppear {

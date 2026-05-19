@@ -75,6 +75,7 @@ enum RaceGrade: String {
 
 struct Race: Identifiable {
     let id = UUID()
+    let raceId: String
     let day: String   // "YYYYMMDD" date string from backend
     let venue: String
     let raceNumber: String
@@ -84,6 +85,20 @@ struct Race: Identifiable {
     let condition: String
     let time: String
     let horses: [Horse]
+
+    init(raceId: String = "", day: String, venue: String, raceNumber: String, name: String,
+         grade: RaceGrade, distance: String, condition: String, time: String, horses: [Horse]) {
+        self.raceId = raceId
+        self.day = day
+        self.venue = venue
+        self.raceNumber = raceNumber
+        self.name = name
+        self.grade = grade
+        self.distance = distance
+        self.condition = condition
+        self.time = time
+        self.horses = horses
+    }
 
     var isPast: Bool {
         let dateFmt = DateFormatter()

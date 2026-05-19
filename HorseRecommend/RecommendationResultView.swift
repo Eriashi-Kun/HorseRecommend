@@ -1,40 +1,55 @@
 import SwiftUI
+import SwiftData
+import Combine
 
 struct RecommendationResultView: View {
     let type: PredictionType
     let race: Race
-    @StateObject private var vm = RecommendationViewModel()
-    @Environment(InterstitialAdManager.self) private var adManager
+    @ObservedObject var vm: RecommendationViewModel
     @Environment(UserWeightsManager.self) private var weights
+
+    init(type: PredictionType, race: Race, vm: RecommendationViewModel = RecommendationViewModel()) {
+        self.type = type
+        self.race = race
+        _vm = ObservedObject(wrappedValue: vm)
+    }
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @State private var appeared = false
     @State private var slotNumber: Int = 0
     @State private var radarProgress: Double = 0
     @State private var shareImage: UIImage? = nil
     @State private var showingShare = false
-    @State private var adShown = false
+    @State private var historySaved = false
 
     var body: some View {
         ZStack {
             InkBlobBackground(primaryColor: type.color)
 
-            if let rec = vm.current {
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 16) {
-                        topBar(rec: rec)
-                        raceStrip
-                        horseHero(rec: rec)
-                        statsRow(rec: rec)
-                        radarCard(rec: rec)
-                        traitBadges(rec: rec)
-                        reasonCard(rec: rec)
-                        Spacer(minLength: 40)
+            VStack(spacing: 0) {
+                if let rec = vm.current {
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 16) {
+                            topBar(rec: rec)
+                            raceStrip
+                            horseHero(rec: rec)
+                            statsRow(rec: rec)
+                            radarCard(rec: rec)
+                            traitBadges(rec: rec)
+                            reasonCard(rec: rec)
+                            Spacer(minLength: 56)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
+                } else {
+                    loadingView
                 }
-            } else {
-                loadingView
+
+                if vm.current != nil {
+                    BannerAdView(adUnitID: Config.bannerAdUnitID)
+                        .frame(height: 50)
+                }
             }
         }
         .toolbar(.hidden, for: .navigationBar)
@@ -45,10 +60,26 @@ struct RecommendationResultView: View {
             }
         }
         .task {
-            await vm.load(type: type, race: race, weights: weights)
-            if !adShown {
-                adShown = true
-                adManager.showIfNeeded()
+            if vm.recommendations.isEmpty {
+                if vm.isLoading {
+                    // 先読み中 — 完了を待つ
+                    await withCheckedContinuation { continuation in
+                        var cancellable: AnyCancellable?
+                        cancellable = vm.$isLoading
+                            .filter { !$0 }
+                            .first()
+                            .sink { _ in
+                                cancellable?.cancel()
+                                continuation.resume()
+                            }
+                    }
+                } else {
+                    await vm.load(type: type, race: race, weights: weights)
+                }
+            }
+            if !historySaved && !vm.recommendations.isEmpty {
+                historySaved = true
+                savePredictionHistory()
             }
             withAnimation(.spring(response: 0.55, dampingFraction: 0.72).delay(0.08)) {
                 appeared = true
@@ -99,6 +130,44 @@ struct RecommendationResultView: View {
         case .longShot:
             return "🔥 爆穴炸裂！\(name)で万馬券を狙え！\nスコア\(score)/99  RANK \(rank)\n#Pakapick #競馬予想"
         }
+    }
+
+    // MARK: - History
+
+    private func savePredictionHistory() {
+        guard let first = vm.recommendations.first else { return }
+
+        let raceId = race.raceId
+        let typeRaw = type.rawValue
+        let wKey = weightsKey(from: weights)
+        let pick = PickData(horseNumber: first.horse.number, horseName: first.horse.name,
+                            odds: first.horse.odds, finishPosition: nil)
+
+        // 同じレース・同じ予想タイプ・同じウェイトが既に保存済みなら上書き
+        let descriptor = FetchDescriptor<PredictionRecord>(
+            predicate: #Predicate { $0.raceId == raceId && $0.predictionType == typeRaw && $0.weightsKey == wKey }
+        )
+        if let existing = try? modelContext.fetch(descriptor), let record = existing.first {
+            record.picks = [pick]
+            record.savedAt = Date()
+            return
+        }
+
+        let record = PredictionRecord(
+            raceId: race.raceId,
+            raceName: race.name,
+            venue: race.venue,
+            raceNumber: race.raceNumber,
+            day: race.day,
+            predictionType: type.rawValue,
+            weightsKey: wKey,
+            picks: [pick]
+        )
+        modelContext.insert(record)
+    }
+
+    private func weightsKey(from w: UserWeightsManager) -> String {
+        "\(Int(w.jockey))_\(Int(w.history))_\(Int(w.popularity))_\(Int(w.cuteness))_\(Int(w.intuition))"
     }
 
     // MARK: - Rank

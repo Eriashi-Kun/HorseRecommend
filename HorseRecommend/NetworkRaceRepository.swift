@@ -23,6 +23,18 @@ final class NetworkRaceRepository {
         return races
     }
 
+    func fetchRaceResult(raceId: String) async -> [Int: Int] {
+        guard !raceId.isEmpty,
+              let url = URL(string: "\(baseURL)/race/\(raceId)/result") else { return [:] }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return [:] }
+        struct ResultDTO: Decodable {
+            struct HorseResult: Decodable { let number: Int; let finish: Int }
+            let results: [HorseResult]
+        }
+        guard let dto = try? JSONDecoder().decode(ResultDTO.self, from: data) else { return [:] }
+        return Dictionary(uniqueKeysWithValues: dto.results.map { ($0.number, $0.finish) })
+    }
+
     func currentRace(from races: [Race]) -> Race {
         let dateFmt = DateFormatter()
         dateFmt.dateFormat = "yyyyMMdd"

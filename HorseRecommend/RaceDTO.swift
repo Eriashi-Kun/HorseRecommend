@@ -3,6 +3,7 @@ import Foundation
 // MARK: - DTOs (API JSON → Swift Models)
 
 struct RaceDTO: Codable {
+    let raceId: String?
     let day: String
     let venue: String
     let raceNumber: String
@@ -15,11 +16,13 @@ struct RaceDTO: Codable {
 
     enum CodingKeys: String, CodingKey {
         case day, venue, name, grade, distance, condition, time, horses
+        case raceId = "race_id"
         case raceNumber = "race_number"
     }
 
     func toRace() -> Race {
         Race(
+            raceId: raceId ?? "",
             day: day,
             venue: venue,
             raceNumber: raceNumber,

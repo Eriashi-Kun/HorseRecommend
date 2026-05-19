@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from scraper import fetch_races_for_upcoming, _fetch_yoso_odds
+from scraper import fetch_races_for_upcoming, _fetch_yoso_odds, fetch_race_result
 from recommender import recommend
 from datetime import datetime, date
 import asyncio
@@ -139,6 +139,11 @@ def get_recommendation(body: RecommendRequest):
     except Exception as e:
         logger.error(f"Recommendation failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/race/{race_id}/result")
+def get_race_result(race_id: str):
+    return fetch_race_result(race_id)
 
 
 @app.get("/health")

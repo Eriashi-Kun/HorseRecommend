@@ -4,13 +4,12 @@ import Observation
 
 @MainActor
 @Observable
-class InterstitialAdManager {
-    private var interstitial: InterstitialAd?
-
-    private let adUnitID = "ca-app-pub-8763709237464698/8850630257"
-    private let freeLimit = 3
-    private let countKey = "adPredictionsToday"
-    private let dateKey  = "adLastDate"
+class RewardedAdManager {
+    private var rewardedAd: RewardedAd?
+    private let adUnitID = Config.rewardedAdUnitID
+    private let freeLimit = 5
+    private let countKey = "rewardedPredictionsToday"
+    private let dateKey  = "rewardedLastDate"
 
     init() {
         Task { await load() }
@@ -22,7 +21,7 @@ class InterstitialAdManager {
         return f.string(from: Date())
     }
 
-    private var predictionsToday: Int {
+    var predictionsToday: Int {
         get {
             let saved = UserDefaults.standard.string(forKey: dateKey) ?? ""
             if saved != todayString {
@@ -38,27 +37,35 @@ class InterstitialAdManager {
         }
     }
 
+    var needsAd: Bool { predictionsToday >= freeLimit }
+
     func load() async {
         do {
-            interstitial = try await InterstitialAd.load(
+            rewardedAd = try await RewardedAd.load(
                 with: adUnitID,
                 request: Request()
             )
         } catch {
-            print("Interstitial ad failed to load: \(error)")
+            print("Rewarded ad failed to load: \(error)")
         }
     }
 
-    func showIfNeeded() {
+    func incrementCount() {
         predictionsToday += 1
+    }
 
-        guard predictionsToday > freeLimit else { return }
-        guard let ad = interstitial,
+    func showAd(onRewarded: @escaping () -> Void, onFailed: @escaping () -> Void) {
+        guard let ad = rewardedAd,
               let root = UIApplication.shared.connectedScenes
                 .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
-                .first else { return }
-        ad.present(from: root)
-        interstitial = nil
+                .first else {
+            onFailed()
+            return
+        }
+        ad.present(from: root, userDidEarnRewardHandler: {
+            onRewarded()
+        })
+        rewardedAd = nil
         Task { await load() }
     }
 }

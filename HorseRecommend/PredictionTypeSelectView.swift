@@ -1,6 +1,5 @@
 import SwiftUI
 
-
 struct PredictionTypeSelectView: View {
     @State private var selected: PredictionType = .safe
     @State private var race: Race = MockRaceRepository().fetchCurrentRace()
@@ -12,7 +11,12 @@ struct PredictionTypeSelectView: View {
     @State private var showCustomize = false
     @State private var raceManuallySelected = false
     @State private var isNavigating = false
+    @State private var showHistory = false
+    @State private var showAdPrompt = false
+    @State private var showAdFailedAlert = false
+    @State private var pendingVM: RecommendationViewModel = RecommendationViewModel()
     @Environment(UserWeightsManager.self) private var weights
+    @Environment(RewardedAdManager.self) private var adManager
 
     private let network = NetworkRaceRepository()
 
@@ -34,20 +38,40 @@ struct PredictionTypeSelectView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task { await loadRaces() }
             .sheet(isPresented: $showRaceSelection) {
-                NavigationStack {
-                    RaceSelectionView(races: allRaces, onSelect: { r in
-                        race = r
-                        raceManuallySelected = true
-                    })
-                }
+                RaceSelectionView(races: allRaces, onSelect: { r in
+                    race = r
+                    raceManuallySelected = true
+                })
                 .preferredColorScheme(.dark)
             }
             .sheet(isPresented: $showCustomize) {
                 ParameterCustomizeView()
                     .environment(weights)
             }
+            .sheet(isPresented: $showHistory) {
+                HistoryView()
+            }
             .navigationDestination(isPresented: $navigate) {
-                RecommendationResultView(type: selected, race: race)
+                RecommendationResultView(type: selected, race: race, vm: pendingVM)
+            }
+            .alert("本日の無料予想を使い切りました", isPresented: $showAdPrompt) {
+                Button("広告を視聴して予想する") {
+                    adManager.showAd(
+                        onRewarded: {
+                            adManager.incrementCount()
+                            navigate = true
+                        },
+                        onFailed: { showAdFailedAlert = true }
+                    )
+                }
+                Button("キャンセル", role: .cancel) {}
+            } message: {
+                Text("広告を1本視聴すると、もう1回予想できます。")
+            }
+            .alert("広告を読み込めませんでした", isPresented: $showAdFailedAlert) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("しばらくしてからもう一度お試しください。")
             }
         }
     }
@@ -56,31 +80,48 @@ struct PredictionTypeSelectView: View {
 
     private var header: some View {
         HStack(alignment: .top, spacing: 0) {
-            VStack(alignment: .leading, spacing: -10) {
-                Text("PAKA")
-                    .font(.system(size: 56, weight: .black, design: .rounded))
-                    .foregroundColor(selected.color)
-                    .shadow(color: selected.color.opacity(0.7), radius: 16, y: 0)
-                    .rotationEffect(.degrees(-2))
-                Text("PICK")
-                    .font(.system(size: 22, weight: .black, design: .rounded))
-                    .foregroundColor(.white.opacity(0.80))
-                    .padding(.leading, 4)
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: -10) {
+                    Text("PAKA")
+                        .font(.system(size: 56, weight: .black, design: .rounded))
+                        .foregroundColor(selected.color)
+                        .shadow(color: selected.color.opacity(0.7), radius: 16, y: 0)
+                    Text("PICK")
+                        .font(.system(size: 22, weight: .black, design: .rounded))
+                        .foregroundColor(.white.opacity(0.80))
+                        .padding(.leading, 4)
+                }
+                HStack(spacing: 8) {
+                    Button {
+                        showHistory = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 13, weight: .bold))
+                            Text("履歴")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                        .foregroundStyle(.white.opacity(0.8))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(.white.opacity(0.12))
+                        .clipShape(Capsule())
+                    }
+                    customizeButton
+                }
             }
+
             Spacer()
-            VStack(alignment: .trailing, spacing: 8) {
-                Image("HorseIcon")
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 52, height: 52)
-                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                    .colorMultiply(selected.color)
-                    .brightness(0.15)
-                    .rotationEffect(.degrees(6))
-                    .shadow(color: selected.color.opacity(0.7), radius: 12)
-                customizeButton
-            }
-            .padding(.top, 8)
+
+            Image("HorseIcon")
+                .resizable()
+                .scaledToFill()
+                .frame(width: 52, height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 14))
+                .colorMultiply(selected.color)
+                .brightness(0.15)
+                .shadow(color: selected.color.opacity(0.7), radius: 12)
+                .padding(.top, 8)
         }
         .padding(.horizontal, 24)
         .padding(.top, 60)
@@ -148,6 +189,9 @@ struct PredictionTypeSelectView: View {
                             .cornerRadius(5)
                     }
                     Text(race.venue)
+                        .font(.system(size: 13, weight: .black))
+                        .foregroundColor(.white.opacity(0.55))
+                    Text(race.raceNumber)
                         .font(.system(size: 13, weight: .black))
                         .foregroundColor(.white.opacity(0.55))
                     Text(race.name)
@@ -227,7 +271,17 @@ struct PredictionTypeSelectView: View {
                 race = updated
             }
         }
-        navigate = true
+        // VMを作成してAI先読み開始（広告視聴中・遷移アニメーション中に並行実行）
+        let vm = RecommendationViewModel()
+        pendingVM = vm
+        Task { await vm.load(type: selected, race: race, weights: weights) }
+
+        if adManager.needsAd {
+            showAdPrompt = true
+        } else {
+            adManager.incrementCount()
+            navigate = true
+        }
     }
 
     // MARK: - Go Button
