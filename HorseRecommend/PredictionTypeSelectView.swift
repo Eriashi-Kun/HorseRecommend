@@ -24,8 +24,10 @@ struct PredictionTypeSelectView: View {
     @State private var showTransitionLoader = false
     @State private var showAdFailedAlert = false
     @State private var pendingVM: RecommendationViewModel = RecommendationViewModel()
+    @State private var hitBannerXP: Int? = nil
     @Environment(UserWeightsManager.self) private var weights
     @Environment(RewardedAdManager.self) private var adManager
+    @Environment(\.modelContext) private var modelContext
 
     private let network = NetworkRaceRepository()
 
@@ -43,6 +45,35 @@ struct PredictionTypeSelectView: View {
                     goButton
                 }
 
+                if let xp = hitBannerXP {
+                    VStack {
+                        HStack(spacing: 12) {
+                            Text("🏆")
+                                .font(.system(size: 26))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("複勝的中！")
+                                    .font(.system(size: 15, weight: .black))
+                                    .foregroundColor(.white)
+                                Text("+\(xp) XP 獲得！")
+                                    .font(.system(size: 13, weight: .black))
+                                    .foregroundColor(SplatTheme.yellow)
+                                    .shadow(color: SplatTheme.yellow.opacity(0.7), radius: 4)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 56)
+                        .padding(.bottom, 14)
+                        .background(SplatTheme.card)
+                        .overlay(alignment: .bottom) {
+                            Rectangle().fill(SplatTheme.yellow.opacity(0.6)).frame(height: 2)
+                        }
+                        Spacer()
+                    }
+                    .ignoresSafeArea()
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 if showTransitionLoader {
                     ZStack {
                         SplatTheme.bg.ignoresSafeArea()
@@ -58,8 +89,13 @@ struct PredictionTypeSelectView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.5), value: selected)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: hitBannerXP)
             .toolbar(.hidden, for: .navigationBar)
-            .task { await loadRaces() }
+            .task {
+                async let r: () = loadRaces()
+                async let p: () = fetchPendingResults()
+                _ = await (r, p)
+            }
             .sheet(isPresented: $showRaceSelection) {
                 RaceSelectionView(races: allRaces, onSelect: { r in
                     race = r
@@ -372,6 +408,48 @@ struct PredictionTypeSelectView: View {
         } catch {
             racesLoaded = true  // エラーでもモックデータで続行できるようにする
             print("Race load failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func fetchPendingResults() async {
+        let dateFmt = DateFormatter()
+        dateFmt.dateFormat = "yyyyMMdd"
+        let today = dateFmt.string(from: Date())
+
+        let pending = records.filter { record in
+            !record.raceId.isEmpty &&
+            record.day < today &&
+            record.picks.allSatisfy { $0.finishPosition == nil }
+        }
+        guard !pending.isEmpty else { return }
+
+        var totalHitXP = 0
+        for record in pending {
+            let result = await network.fetchRaceResult(raceId: record.raceId)
+            guard !result.isEmpty else { continue }
+
+            var updated = record.picks
+            for i in updated.indices {
+                if let pos = result[updated[i].horseNumber] {
+                    updated[i].finishPosition = pos
+                }
+            }
+            record.picks = updated
+
+            if let firstPos = updated.first?.finishPosition, (1...3).contains(firstPos) {
+                totalHitXP += PlayerStats.xpPerHit
+            }
+        }
+        try? modelContext.save()
+
+        if totalHitXP > 0 {
+            await MainActor.run {
+                withAnimation { hitBannerXP = totalHitXP }
+                SoundManager.playXPGain()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                    withAnimation { hitBannerXP = nil }
+                }
+            }
         }
     }
 
