@@ -33,7 +33,11 @@ struct RaceSelectionView: View {
     private var displayedRaces: [Race] {
         races
             .filter { $0.day == selectedDay && $0.venue == selectedVenue }
-            .sorted { $0.time < $1.time }
+            .sorted {
+                let n0 = Int($0.raceNumber.filter(\.isNumber)) ?? 0
+                let n1 = Int($1.raceNumber.filter(\.isNumber)) ?? 0
+                return n0 < n1
+            }
     }
 
     private var nextRaceID: UUID? {
