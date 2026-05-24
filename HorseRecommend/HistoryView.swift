@@ -72,6 +72,7 @@ struct HistoryCard: View {
     let network: NetworkRaceRepository
     @State private var picks: [PickData] = []
     @State private var isFetchingResult = false
+    @Environment(\.modelContext) private var modelContext
 
     private var isPastRace: Bool {
         let fmt = DateFormatter()
@@ -165,6 +166,7 @@ struct HistoryCard: View {
             updated[i].finishPosition = resultMap[updated[i].horseNumber]
         }
         record.picks = updated
+        try? modelContext.save()
         picks = updated
     }
 }
