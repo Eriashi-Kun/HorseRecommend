@@ -7,7 +7,17 @@ struct PlayerStats {
     static let xpPerPrediction = 10
     static let xpPerHit        = 30
 
-    // 現レベルから次レベルに上がるのに必要なXP（ポケモン式）
+    static func xpForTicketHit(betType: String) -> Int {
+        switch betType {
+        case "三連単": return 80
+        case "三連複": return 50
+        case "馬単":   return 40
+        case "馬連":   return 30
+        case "ワイド": return 25
+        default:      return 20  // 単勝・複勝
+        }
+    }
+
     static func xpToNextLevel(from level: Int) -> Int {
         switch level {
         case 1...10:  return 25
@@ -20,26 +30,23 @@ struct PlayerStats {
         case 71...80: return 1000
         case 81...90: return 1200
         case 91...99: return 1500
-        default:      return 0  // Lv.100 が上限
+        default:      return 0
         }
     }
 
-    // totalXP からレベル・現レベル内XP・次レベルまでのXP を計算
     static func computeLevel(from totalXP: Int) -> (level: Int, xpInLevel: Int, xpToNext: Int) {
         var remaining = totalXP
         var lv = 1
         while lv < 100 {
             let needed = xpToNextLevel(from: lv)
-            if remaining < needed {
-                return (lv, remaining, needed)
-            }
+            if remaining < needed { return (lv, remaining, needed) }
             remaining -= needed
             lv += 1
         }
         return (100, 0, 0)
     }
 
-    // MARK: - Properties
+    // MARK: - AI Prediction Properties
 
     let totalXP: Int
     let level: Int
@@ -49,37 +56,51 @@ struct PlayerStats {
     var title: String { Self.title(for: level) }
 
     let streak: Int
-    let totalPredictions: Int   // 全予想数（結果未取得含む）
-    let resolvedCount: Int      // 結果取得済み予想数
-    let pendingCount: Int       // 結果待ち予想数
-    let hitCount: Int           // 複勝数（結果取得済みのみ）
+    let totalPredictions: Int
+    let resolvedCount: Int
+    let pendingCount: Int
+    let hitCount: Int
     var hitRate: Double { resolvedCount > 0 ? Double(hitCount) / Double(resolvedCount) : 0 }
-
     let typeStats: [String: TypeStat]
 
     struct TypeStat {
-        let total: Int   // 結果取得済みのみ
+        let total: Int
         let hits: Int
         var rate: Double { total > 0 ? Double(hits) / Double(total) : 0 }
     }
 
+    // MARK: - Ticket Properties
+
+    let ticketResolvedCount: Int
+    let ticketHitCount: Int
+    var ticketHitRate: Double { ticketResolvedCount > 0 ? Double(ticketHitCount) / Double(ticketResolvedCount) : 0 }
+    let ticketBetStats: [String: TicketBetStat]
+
+    struct TicketBetStat {
+        let total: Int
+        let hits: Int
+        let invested: Int
+        let returned: Int
+        var hitRate: Double { total > 0 ? Double(hits) / Double(total) : 0 }
+        var returnRate: Double { invested > 0 ? Double(returned) / Double(invested) : 0 }
+    }
+
     // MARK: - Init
 
-    init(records: [PredictionRecord]) {
+    init(records: [PredictionRecord], tickets: [TicketRecord] = []) {
+        // AI prediction stats
         var total = 0
         var resolved = 0
-        var hits  = 0
+        var hits = 0
         var typeMap: [String: (total: Int, hits: Int)] = [:]
 
         for record in records {
             let pos = record.picks.first?.finishPosition
             total += 1
-
             guard let pos else { continue }
             let isHit = pos >= 1 && pos <= 3
             resolved += 1
             if isHit { hits += 1 }
-
             let key = record.predictionType
             var s = typeMap[key] ?? (0, 0)
             s.total += 1
@@ -93,14 +114,34 @@ struct PlayerStats {
         hitCount = hits
         typeStats = typeMap.mapValues { TypeStat(total: $0.total, hits: $0.hits) }
 
-        let xp = total * Self.xpPerPrediction + hits * Self.xpPerHit
-        totalXP = xp
-        let (lv, inLv, toNext) = Self.computeLevel(from: xp)
+        // Ticket stats
+        var tMap: [String: (total: Int, hits: Int, invested: Int, returned: Int)] = [:]
+        for ticket in tickets {
+            var s = tMap[ticket.betType] ?? (0, 0, 0, 0)
+            s.total += 1
+            if ticket.isHit { s.hits += 1 }
+            s.invested += ticket.totalAmount
+            s.returned += ticket.payout
+            tMap[ticket.betType] = s
+        }
+        let resolvedTickets = tickets.filter { $0.isResolved }
+        ticketResolvedCount = resolvedTickets.count
+        ticketHitCount = resolvedTickets.filter { $0.isHit }.count
+        ticketBetStats = tMap.mapValues {
+            TicketBetStat(total: $0.total, hits: $0.hits, invested: $0.invested, returned: $0.returned)
+        }
+
+        // Combined XP: AI predictions + ticket hits
+        let predXP = total * Self.xpPerPrediction + hits * Self.xpPerHit
+        let ticketXP = tickets.filter { $0.isHit }.reduce(0) { $0 + Self.xpForTicketHit(betType: $1.betType) }
+        totalXP = predXP + ticketXP
+
+        let (lv, inLv, toNext) = Self.computeLevel(from: totalXP)
         level     = lv
         xpInLevel = inLv
         xpToNext  = toNext
 
-        // 結果取得済みレコードの直近連続複勝
+        // Streak from resolved AI prediction records
         let resolvedRecords = records
             .filter { $0.picks.first?.finishPosition != nil }
             .sorted { $0.savedAt > $1.savedAt }

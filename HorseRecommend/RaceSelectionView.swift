@@ -71,25 +71,42 @@ struct RaceSelectionView: View {
                 .padding(.vertical, 12)
                 .background(SplatTheme.bg)
 
-                daySelector
-                venueSelector
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 12) {
-                        ForEach(displayedRaces) { race in
-                            let past = race.isPast
-                            let next = race.id == nextRaceID
-                            Button {
-                                onSelect(race)
-                                dismiss()
-                            } label: {
-                                RaceCard(race: race, isPast: past, isNext: next)
-                            }
-                            .buttonStyle(ScalePressStyle())
-                            .disabled(past)
-                        }
+                if races.isEmpty {
+                    Spacer()
+                    VStack(spacing: 16) {
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 52))
+                            .foregroundColor(.white.opacity(0.2))
+                        Text("本日のレースはありません")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.white.opacity(0.5))
+                        Text("レース開催日（土・日・祝）に\nご利用ください")
+                            .font(.system(size: 13))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .multilineTextAlignment(.center)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 16)
+                    Spacer()
+                } else {
+                    daySelector
+                    venueSelector
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 12) {
+                            ForEach(displayedRaces) { race in
+                                let past = race.isPast
+                                let next = race.id == nextRaceID
+                                Button {
+                                    onSelect(race)
+                                    dismiss()
+                                } label: {
+                                    RaceCard(race: race, isPast: past, isNext: next)
+                                }
+                                .buttonStyle(ScalePressStyle())
+                                .disabled(past)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 16)
+                    }
                 }
             }
         }

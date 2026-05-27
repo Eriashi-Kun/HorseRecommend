@@ -25,6 +25,6 @@ struct HorseRecommendApp: App {
                 .environment(adManager)
                 .environment(weights)
         }
-        .modelContainer(for: PredictionRecord.self)
+        .modelContainer(for: [PredictionRecord.self, TicketRecord.self])
     }
 }

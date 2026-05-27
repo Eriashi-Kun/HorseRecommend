@@ -3,7 +3,8 @@ import SwiftData
 
 struct PredictionTypeSelectView: View {
     @Query private var records: [PredictionRecord]
-    private var stats: PlayerStats { PlayerStats(records: records) }
+    @Query private var tickets: [TicketRecord]
+    private var stats: PlayerStats { PlayerStats(records: records, tickets: tickets) }
 
     @State private var selected: PredictionType = .safe
     @State private var race: Race = MockRaceRepository().fetchCurrentRace()
@@ -485,9 +486,10 @@ struct PredictionTypeSelectView: View {
 
     private var goButton: some View {
         let past = race.isPast
-        let disabled = past || !racesLoaded || isNavigating
+        let noHorses = race.horses.isEmpty
+        let disabled = past || noHorses || !racesLoaded || isNavigating
         return Button { if !disabled { Task { await refreshAndNavigate() } } } label: {
-            Text(!racesLoaded ? "取得中..." : isNavigating ? "更新中..." : past ? "レース終了" : "予想スタート！")
+            Text(!racesLoaded ? "取得中..." : isNavigating ? "更新中..." : past ? "レース終了" : noHorses ? "出走馬確定前" : "予想スタート！")
                 .font(.system(size: 20, weight: .black, design: .rounded))
                 .foregroundColor(disabled ? .white.opacity(0.35) : SplatTheme.bg)
                 .frame(maxWidth: .infinity)

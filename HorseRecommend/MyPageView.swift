@@ -3,34 +3,45 @@ import SwiftData
 
 struct MyPageView: View {
     @Query(sort: \PredictionRecord.savedAt, order: .reverse) private var records: [PredictionRecord]
+    @Query(sort: \TicketRecord.savedAt, order: .reverse) private var tickets: [TicketRecord]
     @Environment(\.dismiss) private var dismiss
+    @State private var showTickets = false
 
-    private var stats: PlayerStats { PlayerStats(records: records) }
+    private var stats: PlayerStats { PlayerStats(records: records, tickets: tickets) }
+    private var ticketSpent: Int  { tickets.reduce(0) { $0 + $1.totalAmount } }
+    private var ticketReturn: Int { tickets.reduce(0) { $0 + $1.payout } }
+    private var ticketNet: Int    { ticketReturn - ticketSpent }
 
     var body: some View {
-        ZStack {
-            SplatTheme.bg.ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                SplatTheme.bg.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                titleBar
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 16) {
-                        levelCard
-                        summaryRow
-                        typeBreakdownCard
-                        Spacer(minLength: 40)
+                VStack(spacing: 0) {
+                    titleBar
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 16) {
+                            levelCard
+                            ticketCard
+                            ticketBetBreakdownCard
+                            summaryRow
+                            typeBreakdownCard
+                            Spacer(minLength: 40)
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 20)
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 20)
                 }
             }
+            #if !SCREENSHOTS
+            .safeAreaInset(edge: .bottom) {
+                LabeledBannerAdView(adUnitID: Config.bannerAdUnitID)
+            }
+            #endif
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(isPresented: $showTickets) { TicketListView() }
         }
         .preferredColorScheme(.dark)
-        .safeAreaInset(edge: .bottom) {
-            BannerAdView(adUnitID: Config.bannerAdUnitID)
-                .frame(height: 50)
-                .background(SplatTheme.bg)
-        }
     }
 
     // MARK: - Title Bar
@@ -131,12 +142,149 @@ struct MyPageView: View {
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.08), lineWidth: 1))
     }
 
-    // MARK: - Summary Row
+    // MARK: - Ticket Card
+
+    private var ticketCard: some View {
+        Button { showTickets = true } label: {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(SplatTheme.cyan.opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "ticket.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(SplatTheme.cyan)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("馬券管理")
+                        .font(.system(size: 15, weight: .black))
+                        .foregroundColor(.white)
+                    if tickets.isEmpty {
+                        Text("馬券をスキャンして収支を管理")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.white.opacity(0.45))
+                    } else {
+                        HStack(spacing: 10) {
+                            Text("¥\(ticketSpent) 投資")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white.opacity(0.5))
+                            Text("¥\(ticketReturn) 回収")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(SplatTheme.cyan.opacity(0.9))
+                            let n = ticketNet
+                            Text((n >= 0 ? "+" : "") + "¥\(n)")
+                                .font(.system(size: 12, weight: .black))
+                                .foregroundStyle(n >= 0 ? SplatTheme.yellow : .red.opacity(0.8))
+                        }
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .padding(16)
+            .background(SplatTheme.card)
+            .cornerRadius(16)
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(.white.opacity(0.07), lineWidth: 1))
+        }
+        .buttonStyle(ScalePressStyle())
+    }
+
+    // MARK: - Ticket Bet Breakdown
+
+    private var ticketBetBreakdownCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "ticket.fill")
+                    .foregroundColor(SplatTheme.cyan.opacity(0.7))
+                    .font(.system(size: 13))
+                Text("券種別 的中・回収率")
+                    .font(.system(size: 12, weight: .black))
+                    .foregroundColor(.white.opacity(0.5))
+                    .tracking(1)
+            }
+            Rectangle().fill(Color.white.opacity(0.08)).frame(height: 1)
+
+            if stats.ticketBetStats.isEmpty {
+                Text("馬券を追加すると\n買い目パターンが分析されます")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.white.opacity(0.35))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+            } else {
+                let sorted = stats.ticketBetStats.sorted { $0.value.total > $1.value.total }
+                ForEach(sorted, id: \.key) { betType, stat in
+                    ticketBetRow(betType: betType, stat: stat)
+                }
+            }
+        }
+        .padding(20)
+        .background(SplatTheme.card)
+        .cornerRadius(18)
+        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.08), lineWidth: 1))
+    }
+
+    private func ticketBetRow(betType: String, stat: PlayerStats.TicketBetStat) -> some View {
+        HStack(spacing: 10) {
+            Text(betType)
+                .font(.system(size: 13, weight: .black))
+                .foregroundStyle(SplatTheme.cyan)
+                .frame(width: 64, alignment: .leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+
+            VStack(alignment: .leading, spacing: 4) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.white.opacity(0.06)).frame(height: 5)
+                        Capsule()
+                            .fill(stat.hitRate > 0 ? SplatTheme.yellow : Color.clear)
+                            .frame(width: max(0, geo.size.width * CGFloat(min(stat.hitRate, 1.0))), height: 5)
+                            .shadow(color: SplatTheme.yellow.opacity(0.5), radius: 3)
+                    }
+                }
+                .frame(height: 5)
+
+                HStack(spacing: 4) {
+                    Text("\(stat.hits)/\(stat.total)的中")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white.opacity(0.4))
+                    Text("·")
+                        .foregroundStyle(.white.opacity(0.2))
+                    let rr = stat.returnRate * 100
+                    Text(stat.invested > 0 ? String(format: "回収%.0f%%", rr) : "—")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(rr >= 100 ? SplatTheme.yellow : .white.opacity(0.4))
+                }
+            }
+
+            Spacer()
+
+            Text(stat.total > 0 ? String(format: "%.0f%%", stat.hitRate * 100) : "—")
+                .font(.system(size: 14, weight: .black, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 44, alignment: .trailing)
+        }
+    }
+
+    // MARK: - AI Summary Row
 
     private var summaryRow: some View {
         VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 11))
+                    .foregroundColor(.white.opacity(0.3))
+                Text("AI予想履歴")
+                    .font(.system(size: 11, weight: .black))
+                    .foregroundColor(.white.opacity(0.3))
+                    .tracking(1)
+                Spacer()
+            }
             HStack(spacing: 12) {
-                summaryChip(label: "総予想数", value: "\(stats.totalPredictions)回")
+                summaryChip(label: "AI予想数", value: "\(stats.totalPredictions)回")
                 summaryChip(label: "複勝数", value: "\(stats.hitCount)/\(stats.resolvedCount)回")
                 summaryChip(label: "複勝率", value: stats.resolvedCount > 0 ? String(format: "%.0f%%", stats.hitRate * 100) : "—")
             }
