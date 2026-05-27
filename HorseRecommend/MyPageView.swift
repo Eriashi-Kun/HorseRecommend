@@ -26,11 +26,11 @@ struct MyPageView: View {
             }
         }
         .preferredColorScheme(.dark)
+        #if !SCREENSHOTS
         .safeAreaInset(edge: .bottom) {
-            BannerAdView(adUnitID: Config.bannerAdUnitID)
-                .frame(height: 50)
-                .background(SplatTheme.bg)
+            LabeledBannerAdView(adUnitID: Config.bannerAdUnitID)
         }
+        #endif
     }
 
     // MARK: - Title Bar

@@ -46,10 +46,11 @@ struct RecommendationResultView: View {
                     loadingView
                 }
 
+                #if !SCREENSHOTS
                 if vm.current != nil {
-                    BannerAdView(adUnitID: Config.bannerAdUnitID)
-                        .frame(height: 50)
+                    LabeledBannerAdView(adUnitID: Config.bannerAdUnitID)
                 }
+                #endif
             }
         }
         .toolbar(.hidden, for: .navigationBar)
