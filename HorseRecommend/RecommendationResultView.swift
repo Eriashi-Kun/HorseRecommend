@@ -37,7 +37,11 @@ struct RecommendationResultView: View {
                             radarCard(rec: rec)
                             traitBadges(rec: rec)
                             reasonCard(rec: rec)
-                            Spacer(minLength: 56)
+                            #if !SCREENSHOTS
+                            LabeledBannerAdView(adUnitID: Config.bannerAdUnitID)
+                                .padding(.top, 8)
+                            #endif
+                            Spacer(minLength: 40)
                         }
                         .padding(.horizontal, 20)
                         .padding(.top, 20)
@@ -45,12 +49,6 @@ struct RecommendationResultView: View {
                 } else {
                     loadingView
                 }
-
-                #if !SCREENSHOTS
-                if vm.current != nil {
-                    LabeledBannerAdView(adUnitID: Config.bannerAdUnitID)
-                }
-                #endif
             }
         }
         .toolbar(.hidden, for: .navigationBar)

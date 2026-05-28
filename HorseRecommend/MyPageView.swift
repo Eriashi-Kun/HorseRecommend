@@ -18,6 +18,10 @@ struct MyPageView: View {
                         levelCard
                         summaryRow
                         typeBreakdownCard
+                        #if !SCREENSHOTS
+                        LabeledBannerAdView(adUnitID: Config.bannerAdUnitID)
+                            .padding(.top, 8)
+                        #endif
                         Spacer(minLength: 40)
                     }
                     .padding(.horizontal, 20)
@@ -26,11 +30,6 @@ struct MyPageView: View {
             }
         }
         .preferredColorScheme(.dark)
-        #if !SCREENSHOTS
-        .safeAreaInset(edge: .bottom) {
-            LabeledBannerAdView(adUnitID: Config.bannerAdUnitID)
-        }
-        #endif
     }
 
     // MARK: - Title Bar
