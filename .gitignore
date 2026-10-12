@@ -1,0 +1,41 @@
+# ---- macOS ----
+.DS_Store
+
+# ---- Xcode: 個人設定（人ごとに違うので追跡しない）----
+# 共有スキーム (xcshareddata) は追跡する。xcuserdata は個人のUI状態なので除外。
+*.xcuserstate
+*.xcuserdatad/
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
+DerivedData/
+build/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ---- Swift Package Manager ----
+.swiftpm/
+.build/
+Packages/
+
+# ---- Python (backend) ----
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ---- 秘密情報 ----
+.env
+.env.*
+!.env.example
+*.pem
+*.p8
+*.p12
+
+# ---- 素材（サイズが大きいもの。必要なら個別に許可）----
