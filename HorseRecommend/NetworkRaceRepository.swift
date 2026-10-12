@@ -48,7 +48,8 @@ final class NetworkRaceRepository {
         if let next = todayRaces.first(where: { $0.time >= currentTime }) { return next }
         if let last = todayRaces.last { return last }
 
-        let upcoming = races.sorted { $0.day < $1.day || ($0.day == $1.day && $0.time < $1.time) }
-        return upcoming.first ?? sampleRaces[0]
+        let upcoming = races.filter { !$0.isPast }
+            .sorted { $0.day < $1.day || ($0.day == $1.day && $0.time < $1.time) }
+        return upcoming.first ?? races.sorted { $0.day > $1.day || ($0.day == $1.day && $0.time > $1.time) }.first ?? sampleRaces[0]
     }
 }

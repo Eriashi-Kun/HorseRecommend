@@ -12,12 +12,13 @@ logger = logging.getLogger(__name__)
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Referer': 'https://race.netkeiba.com/',
 }
 
 VENUE_CODES = {
     '01': '札幌', '02': '函館', '03': '福島', '04': '新潟',
-    '05': '中山', '06': '東京', '07': '中京', '08': '京都',
+    '05': '東京', '06': '中山', '07': '中京', '08': '京都',
     '09': '阪神', '10': '小倉',
 }
 
@@ -36,14 +37,13 @@ def get_candidate_dates() -> list[str]:
     return [(today + timedelta(days=i)).strftime('%Y%m%d') for i in range(14)]
 
 
-def _get(url: str, encoding: str = 'EUC-JP') -> BeautifulSoup | None:
+def _get(url: str, encoding: str = 'EUC-JP', timeout: int = 25) -> BeautifulSoup | None:
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=15)
+        resp = requests.get(url, headers=HEADERS, timeout=timeout)
         resp.raise_for_status()
-        text = resp.content.decode(encoding, errors='replace')
-        return BeautifulSoup(text, 'lxml')
+        return BeautifulSoup(resp.content, 'lxml', from_encoding=encoding)
     except Exception as e:
-        logger.error(f"GET {url} failed: {e}")
+        logger.warning(f"GET {url} failed: {e}")
         return None
 
 
@@ -81,6 +81,21 @@ def _fetch_yoso_odds(race_id: str) -> dict:
         return {str(int(k)): float(v[0]) for k, v in odds_raw.items() if v and v[0] and v[0] != '---.-'}
     except Exception:
         return {}
+
+
+def fetch_race_ids_for_date_db(date_str: str) -> list[str]:
+    """db.netkeiba.com から過去日付のrace_idリストを取得するフォールバック"""
+    soup = _get(f'https://db.netkeiba.com/?pid=race_list&date={date_str}')
+    if not soup:
+        return []
+    year = date_str[:4]
+    seen, ids = set(), []
+    for m in re.finditer(r'\b(\d{12})\b', str(soup)):
+        rid = m.group(1)
+        if rid not in seen and _valid_race_id(rid, year):
+            seen.add(rid)
+            ids.append(rid)
+    return ids
 
 
 def fetch_race_detail(race_id: str, day: str) -> dict | None:
@@ -140,17 +155,19 @@ def fetch_race_detail(race_id: str, day: str) -> dict | None:
 
     horses = _parse_horses(soup)
 
-    if not race_name or not horses:
-        logger.warning(f"Skipping {race_id}: missing name or horses")
-        return None
-
-    # 予想オッズをAPIから取得して上書き
-    odds_map = _fetch_yoso_odds(race_id)
-    if odds_map:
-        for h in horses:
-            key = str(h['number'])
-            if key in odds_map:
-                h['odds'] = odds_map[key]
+    # 出馬表未公開の場合はレース名だけでも登録（馬なしで表示）
+    if not race_name:
+        race_name = f'{venue} {race_number}'
+    if not horses:
+        logger.info(f"No horses yet for {race_id} (entries not published) — adding as placeholder")
+    else:
+        # 予想オッズをAPIから取得して上書き
+        odds_map = _fetch_yoso_odds(race_id)
+        if odds_map:
+            for h in horses:
+                key = str(h['number'])
+                if key in odds_map:
+                    h['odds'] = odds_map[key]
 
     return {
         'race_id': race_id,
@@ -172,7 +189,6 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
         return []
 
     horses = []
-    horse_num = 0
     for row in table.find_all('tr'):
         # tr_N id を持つ行のみ馬行として扱う（ヘッダー行を除外）
         row_id = row.get('id', '')
@@ -187,8 +203,18 @@ def _parse_horses(soup: BeautifulSoup) -> list[dict]:
         if not name:
             continue
 
-        # 馬番: tr_N のN値は馬番に対応しないため、テーブル行順で1から採番
-        horse_num += 1
+        # 馬番: UmabanN クラスを持つ td から実際の馬番を読む
+        umaban_cell = next(
+            (td for td in row.find_all('td')
+             if any(c.startswith('Umaban') and c != 'Umaban' for c in td.get('class', []))),
+            None
+        )
+        if not umaban_cell:
+            continue
+        try:
+            horse_num = int(umaban_cell.get_text(strip=True))
+        except ValueError:
+            continue
 
         # オッズ: .Txt_R.Popular セル（レース前は数値、過去は "---.-"）
         odds = 99.9
@@ -362,28 +388,71 @@ def fetch_jockey_stats(jockey_id: str) -> dict:
 
 _result_cache: dict[str, dict] = {}
 
+_PAYOUT_CLASS_TO_BET = {
+    'Tansho': '単勝', 'Fukusho': '複勝', 'Wakuren': '枠連',
+    'Umaren': '馬連', 'Umatan': '馬単', 'Wide': 'ワイド',
+    'Fuku3': '三連複', 'Tan3': '三連単',
+    'Sanrenpuku': '三連複', 'Sanrentan': '三連単',  # 旧クラス名との互換
+}
+_HORSES_PER_COMBO = {
+    '単勝': 1, '複勝': 1, '枠連': 2, '馬連': 2, '馬単': 2,
+    'ワイド': 2, '三連複': 3, '三連単': 3,
+}
 
-def fetch_race_result(race_id: str) -> dict:
-    """レース結果ページから着順を取得する（結果確定後は永続キャッシュ）"""
-    if race_id in _result_cache:
-        return _result_cache[race_id]
 
-    soup = _get(f'https://race.netkeiba.com/race/result.html?race_id={race_id}')
-    if not soup:
-        return {'results': []}
+def _parse_payout_table(soup: BeautifulSoup) -> dict:
+    """払戻テーブル（Payout_Detail_Table）を解析して券種→払戻リストのdictを返す"""
+    tables = soup.select('.Payout_Detail_Table')  # 複数テーブルを全て対象にする
+    if not tables:
+        return {}
 
+    payouts: dict[str, list] = {}
+    for table in tables:
+        for row in table.find_all('tr'):
+            row_classes = row.get('class', [])
+            bet_jp = next((_PAYOUT_CLASS_TO_BET[c] for c in row_classes if c in _PAYOUT_CLASS_TO_BET), None)
+            if not bet_jp:
+                continue
+
+            result_cell = row.select_one('td.Result')
+            payout_cell = row.select_one('td.Payout')
+            if not result_cell or not payout_cell:
+                continue
+
+            all_nums = [int(t) for t in re.findall(r'\d+', result_cell.get_text())
+                        if t.isdigit() and 1 <= int(t) <= 28]
+            amounts = [int(s.replace(',', ''))
+                       for s in re.findall(r'[\d,]+(?=\s*円)', payout_cell.get_text())]
+
+            if not all_nums or not amounts:
+                continue
+
+            n_per = _HORSES_PER_COMBO.get(bet_jp, 1)
+            entries = []
+            for i, amount in enumerate(amounts):
+                horses = all_nums[i * n_per:(i + 1) * n_per]
+                if len(horses) == n_per:
+                    entries.append({'horses': horses, 'amount': amount})
+
+            if entries:
+                payouts.setdefault(bet_jp, []).extend(entries)
+
+    return payouts
+
+
+def _parse_result_soup(soup: BeautifulSoup) -> dict | None:
+    """BeautifulSoupからresults+payoutsを解析。データがなければNoneを返す"""
     table = None
     for sel in ['table.RaceTable01', '.Result_Table', '.RaceTable', 'table.race_table_01']:
         table = soup.select_one(sel)
         if table:
             break
     if not table:
-        return {'results': []}
+        return None
 
-    # ヘッダー行からカラム名→インデックスのマップを作成
     header_row = table.find('tr')
     if not header_row:
-        return {'results': []}
+        return None
     headers = [th.get_text(strip=True) for th in header_row.find_all(['th', 'td'])]
     col = {h: i for i, h in enumerate(headers)}
 
@@ -396,18 +465,40 @@ def fetch_race_result(race_id: str) -> dict:
         if not tds:
             continue
         try:
-            finish_text = tds[finish_idx].get_text(strip=True) if finish_idx < len(tds) else ''
-            number_text = tds[number_idx].get_text(strip=True) if number_idx < len(tds) else ''
-            finish = int(finish_text)
-            number = int(number_text)
+            finish = int(tds[finish_idx].get_text(strip=True))
+            number = int(tds[number_idx].get_text(strip=True))
             results.append({'number': number, 'finish': finish})
         except (ValueError, IndexError):
             continue
 
-    result = {'results': results}
-    if results:
-        _result_cache[race_id] = result
-    return result
+    if not results:
+        return None
+
+    return {'results': results, 'payouts': _parse_payout_table(soup)}
+
+
+def fetch_race_result(race_id: str) -> dict:
+    """レース結果ページから着順・払戻を取得する（結果確定後は永続キャッシュ）"""
+    if race_id in _result_cache:
+        return _result_cache[race_id]
+
+    # 複数URLを順番に試す
+    urls = [
+        f'https://race.netkeiba.com/race/result.html?race_id={race_id}',
+        f'https://race.netkeiba.com/race/result.html?race_id={race_id}&rf=top_pickup',
+    ]
+    for url in urls:
+        soup = _get(url)
+        if soup:
+            parsed = _parse_result_soup(soup)
+            if parsed and parsed['results']:
+                _result_cache[race_id] = parsed
+                logger.info(f"Result fetched for {race_id}: {len(parsed['results'])} horses, {list(parsed['payouts'].keys())}")
+                return parsed
+        time.sleep(1)
+
+    logger.warning(f"fetch_race_result: no data for {race_id}")
+    return {'results': [], 'payouts': {}}
 
 
 # ──────────────────────────────────────────────────────────────────

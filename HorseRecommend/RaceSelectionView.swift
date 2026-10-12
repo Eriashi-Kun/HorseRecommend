@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RaceSelectionView: View {
     let races: [Race]
+    var initialDay: String = ""
     var onSelect: (Race) -> Void
     @Environment(\.dismiss) private var dismiss
     @State private var selectedDay: String = ""
