@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pakapick｜ゲーム感覚の競馬AI予想</title>
+  <meta name="description" content="AIが競馬予想をゲーム感覚で楽しくするiOSアプリ。固め・中穴・爆穴の3スタイルで毎週末の重賞を攻略。予想するたびにレベルアップ！">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #120F22;
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .hero {
+      width: 100%;
+      max-width: 600px;
+      padding: 80px 24px 48px;
+      text-align: center;
+    }
+
+    .icon {
+      width: 100px;
+      height: 100px;
+      border-radius: 22px;
+      margin: 0 auto 24px;
+      background: #1E1A35;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 56px;
+    }
+
+    .logo {
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+
+    .logo .paka { color: #00F2FF; text-shadow: 0 0 24px rgba(0,242,255,0.6); }
+    .logo .pick { color: rgba(255,255,255,0.8); font-size: 20px; display: block; margin-top: -4px; }
+
+    .tagline {
+      margin-top: 16px;
+      font-size: 16px;
+      color: rgba(255,255,255,0.55);
+      font-weight: 600;
+    }
+
+    .download-btn {
+      display: inline-block;
+      margin-top: 36px;
+      background: #00F2FF;
+      color: #120F22;
+      font-size: 17px;
+      font-weight: 900;
+      padding: 16px 40px;
+      border-radius: 50px;
+      text-decoration: none;
+      box-shadow: 0 0 24px rgba(0,242,255,0.4);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .download-btn:hover {
+      transform: scale(1.04);
+      box-shadow: 0 0 36px rgba(0,242,255,0.6);
+    }
+
+    .features {
+      width: 100%;
+      max-width: 600px;
+      padding: 0 24px 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .feature-icon { font-size: 32px; flex-shrink: 0; }
+
+    .feature-text h3 {
+      font-size: 15px;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .feature-text p {
+      font-size: 13px;
+      color: rgba(255,255,255,0.45);
+      line-height: 1.5;
+    }
+
+    footer {
+      padding: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255,255,255,0.25);
+    }
+
+    footer a {
+      color: rgba(255,255,255,0.35);
+      text-decoration: none;
+    }
+
+    footer a:hover { color: rgba(255,255,255,0.6); }
+  </style>
+</head>
+<body>
+
+  <div class="hero">
+    <div class="icon">🏇</div>
+    <div class="logo">
+      <span class="paka">PAKA</span>
+      <span class="pick">PICK</span>
+    </div>
+    <p class="tagline">ゲーム感覚で楽しむ AI競馬予想</p>
+    <a class="download-btn" href="https://apps.apple.com/jp/app/pakapick/id6768606387">
+      📱 App Storeで無料ダウンロード
+    </a>
+  </div>
+
+  <div class="features">
+    <div class="feature-card">
+      <div class="feature-icon">🎯</div>
+      <div class="feature-text">
+        <h3>3スタイルのAI予想</h3>
+        <p>固め・中穴・爆穴から選んでAIが出走馬を分析。予想理由もテキストで丁寧に解説します。</p>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">🎮</div>
+      <div class="feature-text">
+        <h3>レベル・XPシステム</h3>
+        <p>予想するたびに経験値が貯まりレベルアップ。「見習い」から「競馬神」まで10段階の称号を目指そう。</p>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">⚙️</div>
+      <div class="feature-text">
+        <h3>カスタマイズ自由</h3>
+        <p>騎手重視・可愛さ重視・デカさ重視など、あなただけの予想スタイルにカスタマイズできます。</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2026 Eriashi　<a href="https://www.notion.so/Pakapick-b2a33ec178d3470cb95467794b70185b" target="_blank">プライバシーポリシー</a></p>
+  </footer>
+
+</body>
+</html>
