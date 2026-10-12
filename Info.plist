@@ -22,10 +22,10 @@
     <string>ca-app-pub-8763709237464698~1037543248</string>
     <key>UIAppFonts</key>
     <array>
-        <string>Fonts/FredokaOne-Regular.ttf</string>
-        <string>Fonts/LilitaOne-Regular.ttf</string>
-        <string>Fonts/Boogaloo-Regular.ttf</string>
-        <string>Fonts/Righteous-Regular.ttf</string>
+        <string>FredokaOne-Regular.ttf</string>
+        <string>LilitaOne-Regular.ttf</string>
+        <string>Boogaloo-Regular.ttf</string>
+        <string>Righteous-Regular.ttf</string>
     </array>
     <key>LSRequiresIPhoneOS</key>
     <true/>
