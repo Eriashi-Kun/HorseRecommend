@@ -41,6 +41,25 @@ Xcode 16+ の**同期フォルダ**（`PBXFileSystemSynchronizedRootGroup`）で
 - **データソース**: netkeiba.com（スクレイピング許可済み・iOS配信も確認済み）
 - **予想ロジック**: オッズでフィルタリング後にClaudeへ送信（固め≤10倍、中穴10-50倍、爆穴50倍超）
 
+## テスト
+
+| 対象 | 場所 | 件数 |
+|---|---|---|
+| iOS（純粋ロジック） | `HorseRecommendTests/` | 31 |
+| バックエンド | `backend/tests/` | 13 |
+
+iOS は **Swift Testing**（`@Test` / `#expect`）。Xcode なら Cmd+U、CLI は
+`xcodebuild test -destination 'platform=iOS Simulator,name=iPhone 17 Pro'`
+（`DEVELOPER_DIR` の指定が必要）。`HorseRecommendTests/` も同期フォルダなので、
+テストファイルを足すだけなら `project.pbxproj` は触らない。
+
+**テストを足したら必ずミューテーションで効力を確認する。** 検証したい節を実装から
+1つ消して、そのテストが落ちることを見る。落ちなければそのテストは何も守っていない。
+通ってしまうので気づけない。
+
+未カバー: `UserWeightsManager` を渡す重みづけ経路（`calculateScore` の weights 分岐）、
+ビュー、ネットワーク層。
+
 ## 主要ファイル
 
 ### iOS

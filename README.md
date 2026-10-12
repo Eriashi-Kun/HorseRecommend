@@ -33,9 +33,15 @@
 └── archive/                 旧実装・素材の原本（削除可。archive/README.md 参照）
 ```
 
-アプリのソースは Xcode 16+ の**同期フォルダ**（`PBXFileSystemSynchronizedRootGroup`）
-で管理している。`HorseRecommend/` 以下にファイルを置けば Xcode が自動で認識するので、
+アプリのソースとテストはどちらも Xcode 16+ の**同期フォルダ**
+（`PBXFileSystemSynchronizedRootGroup`）で管理している。`HorseRecommend/` または
+`HorseRecommendTests/` 以下にファイルを置けば Xcode が自動で認識するので、
 **ファイルの追加・移動で `project.pbxproj` を編集する必要はない。**
+
+例外は**ターゲットの追加**で、これは `project.pbxproj` を触らないとできない
+（テストターゲットの追加時に実際に手で編集した）。やるときは `plutil -lint` で
+構文を確認し、`xcodebuild -list` でターゲットが認識されることを見てから、
+ビルドとテストを通すこと。
 
 ## 開発
 
@@ -56,6 +62,20 @@ DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
 
 最小ターゲットは iOS 26.2（Xcode 26）。依存は SPM で Google Mobile Ads と
 User Messaging Platform。
+
+#### テスト
+
+Swift Testing（`@Test` / `#expect`）を使っている。Xcode なら Cmd+U。
+
+```sh
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcodebuild test -project HorseRecommend.xcodeproj -scheme HorseRecommend \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+```
+
+対象は UI に依存しない純粋なロジック（`Core/Engine/RecommendationEngine`、
+`Features/MyPage/PlayerStats`）。**テストを足したら、検証したい節を実装から1つ
+消してそのテストが落ちることを確認する。** 落ちないテストは何も守っていない。
 
 ### バックエンド
 

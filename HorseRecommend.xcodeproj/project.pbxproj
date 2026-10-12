@@ -12,12 +12,28 @@
 
 /* Begin PBXFileReference section */
 		2B739C0A2F9DA5C7001B4793 /* HorseRecommend.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HorseRecommend.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2B739D022FC00000001B4793 /* HorseRecommendTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HorseRecommendTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXContainerItemProxy section */
+		2B739D0B2FC00000001B4793 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2B739C022F9DA5C7001B4793 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2B739C092F9DA5C7001B4793;
+			remoteInfo = HorseRecommend;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2B739C0C2F9DA5C7001B4793 /* HorseRecommend */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = HorseRecommend;
+			sourceTree = "<group>";
+		};
+		2B739D032FC00000001B4793 /* HorseRecommendTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = HorseRecommendTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -28,6 +44,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				2B739C8D2FB32551001B4793 /* GoogleMobileAds in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2B739D052FC00000001B4793 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -46,6 +69,7 @@
 			isa = PBXGroup;
 			children = (
 				2B739C0A2F9DA5C7001B4793 /* HorseRecommend.app */,
+				2B739D022FC00000001B4793 /* HorseRecommendTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,6 +100,29 @@
 			productReference = 2B739C0A2F9DA5C7001B4793 /* HorseRecommend.app */;
 			productType = "com.apple.product-type.application";
 		};
+		2B739D012FC00000001B4793 /* HorseRecommendTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2B739D072FC00000001B4793 /* Build configuration list for PBXNativeTarget "HorseRecommendTests" */;
+			buildPhases = (
+				2B739D042FC00000001B4793 /* Sources */,
+				2B739D052FC00000001B4793 /* Frameworks */,
+				2B739D062FC00000001B4793 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2B739D0A2FC00000001B4793 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				2B739D032FC00000001B4793 /* HorseRecommendTests */,
+			);
+			name = HorseRecommendTests;
+			packageProductDependencies = (
+			);
+			productName = HorseRecommendTests;
+			productReference = 2B739D022FC00000001B4793 /* HorseRecommendTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -88,6 +135,10 @@
 				TargetAttributes = {
 					2B739C092F9DA5C7001B4793 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					2B739D012FC00000001B4793 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 2B739C092F9DA5C7001B4793;
 					};
 				};
 			};
@@ -109,12 +160,20 @@
 			projectRoot = "";
 			targets = (
 				2B739C092F9DA5C7001B4793 /* HorseRecommend */,
+				2B739D012FC00000001B4793 /* HorseRecommendTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		2B739C082F9DA5C7001B4793 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2B739D062FC00000001B4793 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -131,7 +190,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		2B739D042FC00000001B4793 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		2B739D0A2FC00000001B4793 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2B739C092F9DA5C7001B4793 /* HorseRecommend */;
+			targetProxy = 2B739D0B2FC00000001B4793 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2B739C132F9DA5C8001B4793 /* Debug */ = {
@@ -325,6 +399,44 @@
 			};
 			name = Release;
 		};
+		2B739D082FC00000001B4793 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LVAMT8M869;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eriashi.HorseRecommendTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HorseRecommend.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HorseRecommend";
+			};
+			name = Debug;
+		};
+		2B739D092FC00000001B4793 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = LVAMT8M869;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.eriashi.HorseRecommendTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HorseRecommend.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HorseRecommend";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -342,6 +454,15 @@
 			buildConfigurations = (
 				2B739C162F9DA5C8001B4793 /* Debug */,
 				2B739C172F9DA5C8001B4793 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2B739D072FC00000001B4793 /* Build configuration list for PBXNativeTarget "HorseRecommendTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2B739D082FC00000001B4793 /* Debug */,
+				2B739D092FC00000001B4793 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
